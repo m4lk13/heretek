@@ -82,42 +82,42 @@ Populated by roadmapper. Each requirement maps to exactly one phase.
 
 | Requirement | Phase | Status |
 |-------------|-------|--------|
-| FORK-01 | TBD | Pending |
-| FORK-02 | TBD | Pending |
-| FORK-03 | TBD | Pending |
-| FORK-04 | TBD | Pending |
-| LLM-01 | TBD | Pending |
-| LLM-02 | TBD | Pending |
-| LLM-03 | TBD | Pending |
-| LLM-04 | TBD | Pending |
-| LLM-05 | TBD | Pending |
-| LLM-06 | TBD | Pending |
-| PERS-01 | TBD | Pending |
-| PERS-02 | TBD | Pending |
-| PERS-03 | TBD | Pending |
-| PERS-04 | TBD | Pending |
-| PERS-05 | TBD | Pending |
-| PERS-06 | TBD | Pending |
-| SAFE-01 | TBD | Pending |
-| SAFE-02 | TBD | Pending |
-| SAFE-03 | TBD | Pending |
-| SAFE-04 | TBD | Pending |
-| SAFE-05 | TBD | Pending |
-| SAFE-06 | TBD | Pending |
-| LAUNCH-01 | TBD | Pending |
-| LAUNCH-02 | TBD | Pending |
-| LAUNCH-03 | TBD | Pending |
-| LAUNCH-04 | TBD | Pending |
-| LAUNCH-05 | TBD | Pending |
-| EVOLVE-01 | TBD | Pending |
-| EVOLVE-02 | TBD | Pending |
-| EVOLVE-03 | TBD | Pending |
+| FORK-01 | Phase 1 | Pending |
+| FORK-02 | Phase 1 | Pending |
+| FORK-03 | Phase 1 | Pending |
+| FORK-04 | Phase 1 | Pending |
+| LLM-01 | Phase 1 | Pending |
+| LLM-02 | Phase 1 | Pending |
+| LLM-03 | Phase 1 | Pending |
+| LLM-04 | Phase 1 | Pending |
+| LLM-05 | Phase 1 | Pending |
+| LLM-06 | Phase 1 | Pending |
+| PERS-01 | Phase 2 | Pending |
+| PERS-02 | Phase 2 | Pending |
+| PERS-03 | Phase 2 | Pending |
+| PERS-04 | Phase 2 | Pending |
+| PERS-05 | Phase 2 | Pending |
+| PERS-06 | Phase 2 | Pending |
+| SAFE-01 | Phase 3 | Pending |
+| SAFE-02 | Phase 3 | Pending |
+| SAFE-03 | Phase 3 | Pending |
+| SAFE-04 | Phase 3 | Pending |
+| SAFE-05 | Phase 3 | Pending |
+| SAFE-06 | Phase 3 | Pending |
+| LAUNCH-01 | Phase 4 | Pending |
+| LAUNCH-02 | Phase 4 | Pending |
+| LAUNCH-03 | Phase 4 | Pending |
+| LAUNCH-04 | Phase 4 | Pending |
+| LAUNCH-05 | Phase 4 | Pending |
+| EVOLVE-01 | Phase 4 | Pending |
+| EVOLVE-02 | Phase 4 | Pending |
+| EVOLVE-03 | Phase 4 | Pending |
 
 **Coverage:**
 - v1 requirements: 30 total
-- Mapped to phases: 0 (roadmapper will fill)
-- Unmapped: 30 ⚠️ (resolved when roadmap is created)
+- Mapped to phases: 30
+- Unmapped: 0 ✓
 
 ---
 *Requirements defined: 2026-05-14*
-*Last updated: 2026-05-14 after initialization*
+*Last updated: 2026-05-14 — traceability populated by roadmapper*
