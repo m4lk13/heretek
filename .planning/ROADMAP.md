@@ -29,7 +29,12 @@ Decimal phases appear between their surrounding integers in numeric order.
   3. Bot replies in Russian when prompted in Russian ("ответь по-русски") and in English when prompted in English — Metal-accelerated Qwen bilingual confirmed
   4. `tools/github.py`, `tools/review.py`, and `tools/browser.py` are absent from the codebase; cost-tracking logic replaced by a token logger
   5. Bot does not attempt to contact OpenRouter, OpenAI, or Anthropic — only localhost:11434
-**Plans**: TBD
+**Plans**: 5 plans
+- [ ] 01-PLAN.md — Fork upstream, overlay into existing dir, create playground + last-known-good, ship Wave 0 smoke test scaffold
+- [ ] 02-PLAN.md — Rename `ouroboros/` → `heretek/`, author `supervisor/__main__.py`, flip test_package_rename to real check
+- [ ] 03-PLAN.md — Hard-delete github/review/browser tools + lazy-import call sites, strip cloud env loaders, flip test_no_cloud_hosts
+- [ ] 04-PLAN.md — Patch `heretek/llm.py` for Ollama + JSONL token logger, neuter supervisor/state.py budget, wire OLLAMA_MODEL_LIGHT + HERETEK_MAX_CONTEXT_TOKENS
+- [ ] 05-PLAN.md — Flip test_bilingual_ollama_reply to real RU+EN call, fix CLAUDE.md 24GB, mark Phase 1 complete in roadmap/state
 
 ### Phase 2: Persona + Identity
 **Goal**: The bot speaks as the chaos heretic defined in CODEX_HERETICUS.md and its identity survives a process restart
@@ -75,7 +80,7 @@ Phases execute in numeric order: 1 → 2 → 3 → 4
 
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
-| 1. Foundation + Local LLM | 0/? | Not started | - |
+| 1. Foundation + Local LLM | 0/5 | Planned | - |
 | 2. Persona + Identity | 0/? | Not started | - |
 | 3. Self-Modify Guardrails | 0/? | Not started | - |
 | 4. Launch + First Evolution | 0/? | Not started | - |
