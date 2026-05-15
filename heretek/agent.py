@@ -351,11 +351,13 @@ class OuroborosAgent:
         self._emit_typing_start()
 
         # --- Build context (delegated to context.py) ---
+        # NOTE: review_context_builder argument intentionally omitted —
+        # the multi-model review subsystem (heretek/review.py) was deleted
+        # in Plan 03 along with the review tooling.
         messages, cap_info = build_llm_messages(
             env=self.env,
             memory=self.memory,
             task=task,
-            review_context_builder=self._build_review_context,
         )
 
         if cap_info.get("trimmed_sections"):
@@ -445,13 +447,6 @@ class OuroborosAgent:
 
         finally:
             self._busy = False
-            # Clean up browser if it was used during this task
-            try:
-                from heretek.tools.browser import cleanup_browser
-                cleanup_browser(self.tools._ctx)
-            except Exception:
-                log.debug("Failed to cleanup browser", exc_info=True)
-                pass
             while not self._incoming_messages.empty():
                 try:
                     self._incoming_messages.get_nowait()
@@ -569,42 +564,6 @@ class OuroborosAgent:
             log.debug("Dashboard data.json updated after task completion")
         except Exception:
             log.debug("Failed to auto-update dashboard", exc_info=True)
-
-    # =====================================================================
-    # Review context builder
-    # =====================================================================
-
-    def _build_review_context(self) -> str:
-        """Collect code snapshot + complexity metrics for review tasks."""
-        try:
-            from heretek.review import collect_sections, compute_complexity_metrics, format_metrics
-            sections, stats = collect_sections(self.env.repo_dir, self.env.drive_root)
-            metrics = compute_complexity_metrics(sections)
-
-            parts = [
-                "## Code Review Context\n",
-                format_metrics(metrics),
-                f"\nFiles: {stats['files']}, chars: {stats['chars']}\n",
-                "\nUse repo_read to inspect specific files. "
-                "Use run_shell for tests. Key files below:\n",
-            ]
-
-            total_chars = 0
-            max_chars = 80_000
-            files_added = 0
-            for path, content in sections:
-                if total_chars >= max_chars:
-                    parts.append(f"\n... ({len(sections) - files_added} more files, use repo_read)")
-                    break
-                preview = content[:2000] if len(content) > 2000 else content
-                file_block = f"\n### {path}\n```\n{preview}\n```\n"
-                total_chars += len(file_block)
-                parts.append(file_block)
-                files_added += 1
-
-            return "\n".join(parts)
-        except Exception as e:
-            return f"## Code Review Context\n\n(Failed to collect: {e})\nUse repo_read and repo_list to inspect code."
 
     # =====================================================================
     # Event emission helpers
