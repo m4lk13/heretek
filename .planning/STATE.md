@@ -3,13 +3,13 @@ gsd_state_version: 1.0
 milestone: v6.2
 milestone_name: milestone
 status: in_progress
-stopped_at: Completed 01-02-PLAN.md (heretek/ rename + supervisor/__main__.py + FORK-02 smoke flip)
-last_updated: "2026-05-15T12:41:48.004Z"
+stopped_at: Completed 01-03-PLAN.md (FORK-03 strip — cloud LLM surface area removed; smoke test_no_cloud_hosts now PASS)
+last_updated: "2026-05-15T12:58:20.773Z"
 progress:
   total_phases: 4
   completed_phases: 0
   total_plans: 5
-  completed_plans: 2
+  completed_plans: 3
 ---
 
 # Project State
@@ -24,28 +24,32 @@ See: .planning/PROJECT.md (updated 2026-05-14)
 ## Current Position
 
 Phase: 01 (foundation-local-llm) — EXECUTING
-Plan: 3 of 5
+Plan: 4 of 5
 
 ## Performance Metrics
 
 **Velocity:**
 
-- Total plans completed: 2
-- Average duration: ~7.5 min
+- Total plans completed: 3
+- Average duration: ~8 min
 - Total execution time: <1 hour
 
 **By Phase:**
 
 | Phase | Plans | Total | Avg/Plan |
 |-------|-------|-------|----------|
-| 01-foundation-local-llm | 2 | ~15 min | ~7.5 min |
+| 01-foundation-local-llm | 3 | ~24 min | ~8 min |
 
 **Recent Trend:**
 
-- Last 5 plans: 01-01 (~10 min), 01-02 (5 min, 3 tasks, 43 files)
+- Last 5 plans: 01-01 (~10 min), 01-02 (5 min, 3 tasks, 43 files), 01-03 (9 min, 4 tasks, 15 files)
 - Trend: stable
 
 *Updated after each plan completion*
+
+| Plan | Duration | Tasks | Files |
+|------|----------|-------|-------|
+| Phase 01-foundation-local-llm P03 | 9 min | 4 tasks | 15 files |
 
 ## Accumulated Context
 
@@ -64,6 +68,10 @@ Recent decisions affecting current work:
 - [Phase 01-foundation-local-llm]: Lowercase-only sweep: replaced 'ouroboros' but not 'Ouroboros'/'OUROBOROS' — case-variant env vars (OUROBOROS_MODEL, etc.) intentionally left for Plan 04's OLLAMA_* rename
 - [Phase 01-foundation-local-llm]: Stub the full boot path in supervisor/__main__.py: upstream v6.2.0 has no run()/start()/main() entry function — boot logic is at module scope in colab_launcher.py and gated on cloud secrets. --help + --smoke work today; full boot deferred to Plans 03/04/05
 - [Phase 01-foundation-local-llm]: Added project root to sys.path in scripts/smoke_test.py — pre-existing scaffold bug surfaced once test_package_rename stopped returning SKIP; Python sets sys.path[0] to scripts/ not cwd when invoked as 'python scripts/smoke_test.py'
+- [Phase 01-foundation-local-llm]: Plan 03 (strip) — Hard-delete-no-stubs: tool registry's pkgutil.iter_modules + try/except silently skips deleted files, so no registry edits needed when removing tool modules
+- [Phase 01-foundation-local-llm]: Plan 03 (strip) — Expanded scope to delete tools/health.py + tools/search.py and strip supervisor/state.py + tools/shell.py [Rule 3 - Blocking]; plan author explicitly authorized supervisor/state.py and shell.py strips in Task 4 acceptance criteria ('do not loosen the regex — fix the source')
+- [Phase 01-foundation-local-llm]: Plan 03 (strip) — Preserve LLMClient class shell with chat/vision_query/default_model/available_models for Plan 04's Ollama patch; OpenAI client is wire-compatible with Ollama /v1 endpoint so only __init__ defaults need to change
+- [Phase 01-foundation-local-llm]: Plan 03 (strip) — Vision/screenshot tools (vision.py, parts of core.py) left in place as permanent no-ops rather than deleted; logged in deferred-items.md for Plan 04/05 follow-up (preserves a tight strip surface)
 
 ### Pending Todos
 
@@ -76,6 +84,6 @@ None yet.
 
 ## Session Continuity
 
-Last session: 2026-05-15T12:41:48.002Z
-Stopped at: Completed 01-02-PLAN.md (heretek/ rename + supervisor/__main__.py + FORK-02 smoke flip)
-Resume file: .planning/phases/01-foundation-local-llm/03-PLAN.md
+Last session: 2026-05-15T12:58:20.771Z
+Stopped at: Completed 01-03-PLAN.md (FORK-03 strip — cloud LLM surface area removed; smoke test_no_cloud_hosts now PASS)
+Resume file: .planning/phases/01-foundation-local-llm/04-PLAN.md
