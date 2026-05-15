@@ -44,3 +44,46 @@ renames them to `OLLAMA_*` as part of the cloud → local swap.
 **Status:** unchanged.  `pyproject.toml` declares 3.10+ but local dev is on
 3.9. No new symptoms surfaced during Plan 03; smoke test passes on 3.9.
 Resolve when CI is set up (Phase 4 or later).
+
+## From Plan 01-04 (Ollama swap + budget neuter)
+
+### Residual `OUROBOROS_*` env var references in non-llm/consciousness/context files
+
+**Discovered:** Task 3, after final post-task grep across `heretek/` and
+`supervisor/`.
+
+**Affected files (env vars Plan 04 did NOT rename — out of plan scope):**
+- `heretek/loop.py:611` — `OUROBOROS_MAX_ROUNDS` (max tool-loop rounds knob)
+- `heretek/loop.py:674` — `OUROBOROS_MODEL_FALLBACK_LIST` (cloud-era fallback chain; semantically obsolete on Ollama)
+- `heretek/tools/core.py:261` — `OUROBOROS_MODEL_LIGHT` / `OUROBOROS_MODEL` (with cloud-era default `anthropic/claude-sonnet-4.6`)
+- `heretek/tools/vision.py:28,145,184` — `OUROBOROS_MODEL` (with cloud-era default; vision tools already noted as no-ops above)
+- `heretek/tools/self_portrait.py:208` — `OUROBOROS_MODEL` (status string only)
+- `heretek/tools/dashboard.py:241` — `OUROBOROS_MODEL` (status string only)
+- `heretek/tools/evolution_stats.py:28` — `OUROBOROS_REPO_DIR` (path resolution)
+- `heretek/tools/git.py:65` — `OUROBOROS_PRE_PUSH_TESTS` (CI hook knob)
+- `supervisor/events.py:264` — `OUROBOROS_MODEL_LIGHT` (with cloud-era `x-ai/grok-3-mini` default)
+- `supervisor/workers.py:51` — `OUROBOROS_WORKER_START_METHOD` (multiprocessing start method)
+
+**Issue:** Plan 04's frontmatter `files_modified` listed only `heretek/llm.py`,
+`heretek/consciousness.py`, `heretek/context.py`, `supervisor/state.py`,
+`requirements.txt`. The above references are in other files and are
+out-of-scope per the deviation-rules scope boundary. They do not block the
+plan's smoke tests (no cloud-host regex hit; module imports clean) and they
+do not break the Ollama wiring (caller code paths in question are either
+no-op vision tools, status text, or features not yet exercised).
+
+**Resolution:** Rename to `HERETEK_*` (for project-internal knobs) or
+`OLLAMA_*` (for model-name knobs) in a follow-up env-var hygiene plan
+(suggest Phase 02 or a dedicated Phase 01-06 cleanup pass). Cloud-era
+defaults inside the env-var values (e.g., `anthropic/claude-sonnet-4.6`,
+`x-ai/grok-3-mini`) should be updated to Ollama tags in the same pass.
+
+### Background docstring header still says "Ouroboros"
+
+**Discovered:** Task 3, while editing consciousness.py.
+
+**Status:** Module-level docstring `"""Ouroboros — Background Consciousness."""`
+preserved on purpose. Per Plan 02 decision (in STATE.md): the rename sweep
+was lowercase-only; case-variant Title-case strings like this one were left
+in place. Plan 04 did not own the case-variant rename either. Defer to a
+later cleanup plan.
