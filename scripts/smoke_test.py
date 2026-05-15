@@ -57,13 +57,39 @@ def test_package_rename() -> str:
 
 
 def test_no_cloud_hosts() -> str:
-    """LLM-01 + LLM-05 verification: no openrouter.ai / api.openai.com /
-    api.anthropic.com strings or cloud-LLM key references inside heretek/.
+    """LLM-01 + LLM-05 verification: no cloud-LLM host strings or env var
+    names anywhere in the heretek/ or supervisor/ source trees.
 
-    Owned by Plan 03 (strip) + Plan 04 (LLM swap). Currently SKIP.
+    Owned by Plan 03 (strip — static check) + Plan 04 (runtime check via
+    test_bilingual_ollama_reply).
     """
-    print(f"{SKIP} test_no_cloud_hosts — not yet implemented (Plan 03/04 will flip this)")
-    return "skip"
+    import re
+
+    pattern = re.compile(
+        r"openrouter\.ai|api\.openai\.com|api\.anthropic\.com|"
+        r"OPENROUTER_API_KEY|OPENAI_API_KEY|ANTHROPIC_API_KEY"
+    )
+    hits: list[str] = []
+    for root in ("heretek", "supervisor"):
+        root_path = Path(root)
+        if not root_path.exists():
+            continue
+        for path in root_path.rglob("*.py"):
+            try:
+                text = path.read_text(encoding="utf-8", errors="replace")
+            except OSError:
+                continue
+            for i, line in enumerate(text.splitlines(), 1):
+                if pattern.search(line):
+                    hits.append(f"  {path}:{i}: {line.strip()}")
+
+    if hits:
+        print(f"{FAIL} test_no_cloud_hosts: cloud LLM references found:")
+        for h in hits:
+            print(h)
+        return "fail"
+    print(f"{PASS} test_no_cloud_hosts: no cloud LLM references in heretek/ or supervisor/")
+    return "pass"
 
 
 def test_bilingual_ollama_reply() -> str:
