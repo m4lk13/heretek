@@ -11,7 +11,6 @@ import json
 import os
 import pathlib
 import queue
-import threading
 import time
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from typing import Any, Callable, Dict, List, Optional, Tuple
@@ -44,43 +43,15 @@ _MODEL_PRICING_STATIC = {
     "qwen/qwen3.5-plus-02-15": (0.40, 0.04, 2.40),
 }
 
-_pricing_fetched = False
-_cached_pricing = None
-_pricing_lock = threading.Lock()
-
 def _get_pricing() -> Dict[str, Tuple[float, float, float]]:
     """
-    Lazy-load pricing. On first call, attempts to fetch from OpenRouter API.
-    Falls back to static pricing if fetch fails.
-    Thread-safe via module-level lock.
+    Return pricing dict. Plan 03 strip: the upstream live-pricing fetch from
+    OpenRouter is gone — Heretek is local-only and inference cost is zero.
+    The static table is kept for tooling that still consumes _estimate_cost,
+    but local Ollama calls will simply produce cost=0 via the missing-model
+    branch in _estimate_cost.
     """
-    global _pricing_fetched, _cached_pricing
-
-    # Fast path: already fetched (read without lock for performance)
-    if _pricing_fetched:
-        return _cached_pricing or _MODEL_PRICING_STATIC
-
-    # Slow path: fetch pricing (lock required)
-    with _pricing_lock:
-        # Double-check after acquiring lock (another thread may have fetched)
-        if _pricing_fetched:
-            return _cached_pricing or _MODEL_PRICING_STATIC
-
-        _pricing_fetched = True
-        _cached_pricing = dict(_MODEL_PRICING_STATIC)
-
-        try:
-            from heretek.llm import fetch_openrouter_pricing
-            _live = fetch_openrouter_pricing()
-            if _live and len(_live) > 5:
-                _cached_pricing.update(_live)
-        except Exception as e:
-            import logging as _log
-            _log.getLogger(__name__).warning("Failed to sync pricing from OpenRouter: %s", e)
-            # Reset flag so we retry next time
-            _pricing_fetched = False
-
-        return _cached_pricing
+    return _MODEL_PRICING_STATIC
 
 def _estimate_cost(model: str, prompt_tokens: int, completion_tokens: int,
                    cached_tokens: int = 0, cache_write_tokens: int = 0) -> float:
