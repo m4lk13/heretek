@@ -7,7 +7,7 @@
 
 ### Foundation & Fork (FORK)
 
-- [ ] **FORK-01**: Fork `razzant/ouroboros` v6.2.0 to GitHub as `<owner>/heretek`, clone locally to `~/code/heretek` (or repo root), create `playground` and `last-known-good` branches
+- [x] **FORK-01**: Fork `razzant/ouroboros` v6.2.0 to GitHub as `<owner>/heretek`, clone locally to `~/code/heretek` (or repo root), create `playground` and `last-known-good` branches
 - [ ] **FORK-02**: Rename `ouroboros/` Python package to `heretek/`; update `pyproject.toml`, imports, and references
 - [ ] **FORK-03**: Remove unneeded modules: `tools/github.py`, `tools/review.py` (multi-model), browser/Playwright tool (`tools/browser.py`)
 - [ ] **FORK-04**: Neuter budget tracking — replace cost-calculation logic with a token counter that just logs (local inference is free)
@@ -82,7 +82,7 @@ Populated by roadmapper. Each requirement maps to exactly one phase.
 
 | Requirement | Phase | Status |
 |-------------|-------|--------|
-| FORK-01 | Phase 1 | Pending |
+| FORK-01 | Phase 1 | Complete |
 | FORK-02 | Phase 1 | Pending |
 | FORK-03 | Phase 1 | Pending |
 | FORK-04 | Phase 1 | Pending |
