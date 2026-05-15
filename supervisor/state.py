@@ -232,51 +232,57 @@ def init_state() -> Dict[str, Any]:
 
 
 # ---------------------------------------------------------------------------
-# Budget tracking (moved from workers.py)
+# Budget tracking (Plan 04: FORK-04 neuter)
 # ---------------------------------------------------------------------------
+# Heretek runs on free local Ollama inference — there is no dollar cost to
+# track. The public shape of this module's budget API is preserved so that
+# existing callers (workers.py, status_text, etc.) keep working without
+# changes, but internally every cost-related path returns 0/inf and no
+# function makes any HTTP call. Token accumulators are preserved for
+# observability.
 TOTAL_BUDGET_LIMIT: float = 0.0
-EVOLUTION_BUDGET_RESERVE: float = 50.0  # Stop evolution when remaining < this
+EVOLUTION_BUDGET_RESERVE: float = 50.0  # legacy threshold kept for callers
 
 
 def set_budget_limit(limit: float) -> None:
-    """Set total budget limit for budget_pct calculation."""
-    global TOTAL_BUDGET_LIMIT
-    TOTAL_BUDGET_LIMIT = limit
+    """No-op for Heretek — local inference is unbounded by dollar cost.
+
+    Signature preserved so init() callers don't break. The module-level
+    TOTAL_BUDGET_LIMIT stays at its default 0.0; no caller reads it as a
+    meaningful budget after this Plan-04 neuter.
+    """
+    pass
 
 
-def budget_remaining(st: Dict[str, Any]) -> float:
-    """Calculate remaining budget in USD."""
-    spent = float(st.get("spent_usd") or 0.0)
-    total = float(TOTAL_BUDGET_LIMIT or 0.0)
-    if total <= 0:
-        return float('inf')  # No limit set
-    return max(0.0, total - spent)
+def budget_remaining(st: Optional[Dict[str, Any]] = None) -> float:
+    """Heretek has no budget cap — local inference is free.
+
+    Returns float('inf') so any `if budget_remaining(...) < threshold` guard
+    in upstream code is a no-op. The optional `st` argument is accepted but
+    ignored; legacy callers like `budget_remaining(load_state())` keep
+    working without modification.
+    """
+    return float("inf")
 
 
-def budget_pct(st: Dict[str, Any]) -> float:
-    """Calculate budget percentage used."""
-    spent = float(st.get("spent_usd") or 0.0)
-    total = float(TOTAL_BUDGET_LIMIT or 0.0)
-    if total <= 0:
-        return 0.0
-    return (spent / total) * 100.0
+def budget_pct(st: Optional[Dict[str, Any]] = None) -> float:
+    """Heretek has no budget cap — always reports 0% used.
+
+    Optional `st` argument is accepted but ignored (see budget_remaining).
+    """
+    return 0.0
 
 
 def update_budget_from_usage(usage: Dict[str, Any]) -> None:
-    """Update state with LLM usage costs and tokens.
+    """Accumulate token counters from one LLM call.
 
-    Uses a single lock scope for the read-modify-write cycle to prevent
-    concurrent writes from losing budget updates.
-
-    Plan 03 strip: the upstream cloud ground-truth cross-check is gone.
+    Plan 04 neuter:
+    - spent_usd is NEVER accumulated (Heretek runs on free local Ollama).
+    - No HTTP calls. The upstream periodic OpenRouter ground-truth
+      cross-check is gone.
+    - Token accumulators (prompt, completion, cached) and the calls counter
+      are preserved for observability via status_text and JSONL events.
     """
-    def _to_float(v: Any, default: float = 0.0) -> float:
-        try:
-            return float(v)
-        except Exception:
-            log.debug(f"Failed to convert value to float: {v!r}", exc_info=True)
-            return default
-
     def _to_int(v: Any, default: int = 0) -> int:
         try:
             return int(v)
@@ -284,14 +290,11 @@ def update_budget_from_usage(usage: Dict[str, Any]) -> None:
             log.debug(f"Failed to convert value to int: {v!r}", exc_info=True)
             return default
 
-    # Step 1: Update budget counters under lock (fast, no I/O beyond Drive)
+    # Single read-modify-write under lock to prevent concurrent writes from
+    # losing counter updates.
     lock_fd = acquire_file_lock(STATE_LOCK_PATH)
     try:
         st = _load_state_unlocked()
-        cost = usage.get("cost") if isinstance(usage, dict) else None
-        if cost is None:
-            cost = 0.0
-        st["spent_usd"] = _to_float(st.get("spent_usd") or 0.0) + _to_float(cost)
         rounds = _to_int(usage.get("rounds") if isinstance(usage, dict) else 0, default=1)
         st["spent_calls"] = int(st.get("spent_calls") or 0) + rounds
         st["spent_tokens_prompt"] = _to_int(st.get("spent_tokens_prompt") or 0) + _to_int(
@@ -300,13 +303,11 @@ def update_budget_from_usage(usage: Dict[str, Any]) -> None:
             usage.get("completion_tokens") if isinstance(usage, dict) else 0)
         st["spent_tokens_cached"] = _to_int(st.get("spent_tokens_cached") or 0) + _to_int(
             usage.get("cached_tokens") if isinstance(usage, dict) else 0)
+        # spent_usd intentionally NOT accumulated — Heretek runs on free
+        # local Ollama inference, no dollar cost to track.
         _save_state_unlocked(st)
     finally:
         release_file_lock(STATE_LOCK_PATH, lock_fd)
-
-    # Plan 03 strip: the upstream periodic OpenRouter ground-truth cross-check
-    # and drift-alert logic were removed. Heretek runs local Ollama — there is
-    # no external ground truth to reconcile against. Drift fields stay at None.
 
 
 # ---------------------------------------------------------------------------
