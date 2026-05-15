@@ -96,17 +96,32 @@ class LLMClient:
         # Ollama defaults. Ollama ignores the api_key but the OpenAI SDK
         # requires a non-empty string — the literal "ollama" is conventional.
         self._api_key = api_key or os.environ.get("OLLAMA_API_KEY", "ollama")
+        # Use 127.0.0.1 (not localhost) to force IPv4. Ollama binds only to
+        # IPv4 by default; httpx tries IPv6 (::1) first when resolving
+        # "localhost" and does not fall back to IPv4 cleanly, surfacing as
+        # "APIConnectionError: Connection error" / "ConnectError: [Errno 61]
+        # Connection refused" — even though curl works because it does retry
+        # AF_INET after AF_INET6 refusal.
         self._base_url = base_url or os.environ.get(
-            "OLLAMA_BASE_URL", "http://localhost:11434/v1"
+            "OLLAMA_BASE_URL", "http://127.0.0.1:11434/v1"
         )
         self._client = None
 
     def _get_client(self):
         if self._client is None:
+            import httpx
             from openai import OpenAI
+            # trust_env=False on the httpx transport prevents the OpenAI SDK
+            # from picking up a system-wide HTTP proxy (common on macOS
+            # configured via scutil --proxy). Without this, localhost:11434
+            # requests get routed through the user's proxy and fail with
+            # "Server disconnected without sending a response." OLLAMA_BASE_URL
+            # is always localhost (or a user-chosen local endpoint), so
+            # bypassing env-discovered proxies is correct here.
             self._client = OpenAI(
                 base_url=self._base_url,
                 api_key=self._api_key,
+                http_client=httpx.Client(trust_env=False),
             )
         return self._client
 
