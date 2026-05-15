@@ -1,4 +1,4 @@
-"""Shared utility for pushing files to razzant/ouroboros-webapp via git."""
+"""Shared utility for pushing files to razzant/heretek-webapp via git."""
 
 from __future__ import annotations
 
@@ -17,7 +17,7 @@ def push_to_webapp(
     commit_msg: str,
     post_clone_hook: Optional[Callable[[Path], None]] = None,
 ) -> str:
-    """Clone ouroboros-webapp, write files, commit and push.
+    """Clone heretek-webapp, write files, commit and push.
 
     Args:
         files: {filename: content} dict -- files to write to the webapp repo root.
@@ -34,9 +34,9 @@ def push_to_webapp(
 
         token = os.environ.get("GITHUB_TOKEN", "")
         if token:
-            repo_url = f"https://{token}@github.com/razzant/ouroboros-webapp.git"
+            repo_url = f"https://{token}@github.com/razzant/heretek-webapp.git"
         else:
-            repo_url = "https://github.com/razzant/ouroboros-webapp.git"
+            repo_url = "https://github.com/razzant/heretek-webapp.git"
 
         r = subprocess.run(
             ["git", "clone", "--depth=1", repo_url, str(webapp_dir)],
@@ -46,7 +46,7 @@ def push_to_webapp(
             return f"Clone failed: {r.stderr[:400]}"
 
         subprocess.run(["git", "config", "user.name", "Ouroboros"], cwd=webapp_dir, capture_output=True)
-        subprocess.run(["git", "config", "user.email", "ouroboros@joi.ai"], cwd=webapp_dir, capture_output=True)
+        subprocess.run(["git", "config", "user.email", "heretek@joi.ai"], cwd=webapp_dir, capture_output=True)
 
         for filename, content in files.items():
             (webapp_dir / filename).write_text(content, encoding="utf-8")

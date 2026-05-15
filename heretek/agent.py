@@ -21,17 +21,17 @@ from typing import Any, Dict, List, Optional, Tuple
 
 log = logging.getLogger(__name__)
 
-from ouroboros.utils import (
+from heretek.utils import (
     utc_now_iso, read_text, append_jsonl,
     safe_relpath, truncate_for_log,
     get_git_info, sanitize_task_for_event,
 )
-from ouroboros.llm import LLMClient, add_usage
-from ouroboros.tools import ToolRegistry
-from ouroboros.tools.registry import ToolContext
-from ouroboros.memory import Memory
-from ouroboros.context import build_llm_messages
-from ouroboros.loop import run_llm_loop
+from heretek.llm import LLMClient, add_usage
+from heretek.tools import ToolRegistry
+from heretek.tools.registry import ToolContext
+from heretek.memory import Memory
+from heretek.context import build_llm_messages
+from heretek.loop import run_llm_loop
 
 
 # ---------------------------------------------------------------------------
@@ -49,7 +49,7 @@ _worker_boot_lock = threading.Lock()
 class Env:
     repo_dir: pathlib.Path
     drive_root: pathlib.Path
-    branch_dev: str = "ouroboros"
+    branch_dev: str = "heretek"
 
     def repo_path(self, rel: str) -> pathlib.Path:
         return (self.repo_dir / safe_relpath(rel)).resolve()
@@ -447,7 +447,7 @@ class OuroborosAgent:
             self._busy = False
             # Clean up browser if it was used during this task
             try:
-                from ouroboros.tools.browser import cleanup_browser
+                from heretek.tools.browser import cleanup_browser
                 cleanup_browser(self.tools._ctx)
             except Exception:
                 log.debug("Failed to cleanup browser", exc_info=True)
@@ -555,7 +555,7 @@ class OuroborosAgent:
 
         # Auto-update dashboard data.json after every task completion
         try:
-            from ouroboros.tools.dashboard import _collect_data, _push_to_github
+            from heretek.tools.dashboard import _collect_data, _push_to_github
             ctx = ToolContext(
                 repo_dir=self.env.repo_dir,
                 drive_root=self.env.drive_root,
@@ -577,7 +577,7 @@ class OuroborosAgent:
     def _build_review_context(self) -> str:
         """Collect code snapshot + complexity metrics for review tasks."""
         try:
-            from ouroboros.review import collect_sections, compute_complexity_metrics, format_metrics
+            from heretek.review import collect_sections, compute_complexity_metrics, format_metrics
             sections, stats = collect_sections(self.env.repo_dir, self.env.drive_root)
             metrics = compute_complexity_metrics(sections)
 

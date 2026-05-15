@@ -29,7 +29,7 @@ from supervisor.telegram import send_with_budget
 # ---------------------------------------------------------------------------
 # Module-level config (set via init())
 # ---------------------------------------------------------------------------
-REPO_DIR: pathlib.Path = pathlib.Path("/content/ouroboros_repo")
+REPO_DIR: pathlib.Path = pathlib.Path("/content/heretek_repo")
 DRIVE_ROOT: pathlib.Path = pathlib.Path("/content/drive/MyDrive/Ouroboros")
 MAX_WORKERS: int = 5
 SOFT_TIMEOUT_SEC: int = 600
@@ -37,8 +37,8 @@ HARD_TIMEOUT_SEC: int = 1800
 HEARTBEAT_STALE_SEC: int = 120
 QUEUE_MAX_RETRIES: int = 1
 TOTAL_BUDGET_LIMIT: float = 0.0
-BRANCH_DEV: str = "ouroboros"
-BRANCH_STABLE: str = "ouroboros-stable"
+BRANCH_DEV: str = "heretek"
+BRANCH_STABLE: str = "heretek-stable"
 
 _CTX = None
 _LAST_SPAWN_TIME: float = 0.0  # grace period: don't count dead workers right after spawn
@@ -63,7 +63,7 @@ def _get_ctx():
 
 def init(repo_dir: pathlib.Path, drive_root: pathlib.Path, max_workers: int,
          soft_timeout: int, hard_timeout: int, total_budget_limit: float,
-         branch_dev: str = "ouroboros", branch_stable: str = "ouroboros-stable") -> None:
+         branch_dev: str = "heretek", branch_stable: str = "heretek-stable") -> None:
     global REPO_DIR, DRIVE_ROOT, MAX_WORKERS, SOFT_TIMEOUT_SEC, HARD_TIMEOUT_SEC
     global TOTAL_BUDGET_LIMIT, BRANCH_DEV, BRANCH_STABLE
     REPO_DIR = repo_dir
@@ -130,7 +130,7 @@ def _get_chat_agent():
     global _chat_agent
     if _chat_agent is None:
         sys.path.insert(0, str(REPO_DIR))
-        from ouroboros.agent import make_agent
+        from heretek.agent import make_agent
         _chat_agent = make_agent(
             repo_dir=str(REPO_DIR),
             drive_root=str(DRIVE_ROOT),
@@ -281,7 +281,7 @@ def worker_main(wid: int, in_q: Any, out_q: Any, repo_dir: str, drive_root: str)
     _sys.path.insert(0, repo_dir)
     _drive = _pathlib.Path(drive_root)
     try:
-        from ouroboros.agent import make_agent
+        from heretek.agent import make_agent
         agent = make_agent(repo_dir=repo_dir, drive_root=drive_root, event_queue=out_q)
     except Exception as _e:
         _log_worker_crash(wid, _drive, "make_agent", _e, _tb.format_exc())

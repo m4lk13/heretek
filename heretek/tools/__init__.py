@@ -5,6 +5,6 @@
 Добавить инструмент: создать модуль в этом пакете, экспортировать get_tools().
 """
 
-from ouroboros.tools.registry import ToolRegistry, ToolContext, ToolEntry
+from heretek.tools.registry import ToolRegistry, ToolContext, ToolEntry
 
 __all__ = ['ToolRegistry', 'ToolContext', 'ToolEntry']

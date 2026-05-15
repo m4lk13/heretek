@@ -25,7 +25,7 @@ from typing import Any
 log = logging.getLogger(__name__)
 
 _VERSION_RE = re.compile(r"v(\d+\.\d+\.\d+)")
-_REPO_DIR = Path(os.environ.get("OUROBOROS_REPO_DIR", "/content/ouroboros_repo"))
+_REPO_DIR = Path(os.environ.get("OUROBOROS_REPO_DIR", "/content/heretek_repo"))
 
 # How many data-points to generate (sampled across full history)
 MAX_POINTS = 100
@@ -68,7 +68,7 @@ async function loadEvolution() {
   if (stats) stats.style.display = 'none';
 
   try {
-    const url = `https://raw.githubusercontent.com/razzant/ouroboros-webapp/main/evolution.json?t=${Date.now()}`;
+    const url = `https://raw.githubusercontent.com/razzant/heretek-webapp/main/evolution.json?t=${Date.now()}`;
     const r = await fetch(url);
     if (!r.ok) throw new Error(`HTTP ${r.status}`);
     const data = await r.json();
@@ -336,8 +336,8 @@ def _patch_app_html(webapp_dir: Path) -> str:
 
 
 def _push_to_webapp(data: dict[str, Any]) -> str:
-    """Push evolution.json to ouroboros-webapp repo and patch app.html if needed."""
-    from ouroboros.tools.webapp_push import push_to_webapp
+    """Push evolution.json to heretek-webapp repo and patch app.html if needed."""
+    from heretek.tools.webapp_push import push_to_webapp
 
     files = {
         "evolution.json": json.dumps(data, ensure_ascii=False, indent=2),
@@ -383,7 +383,7 @@ def generate_evolution_stats() -> str:
 
 def get_tools():
     """Auto-discovery entry point for ToolRegistry."""
-    from ouroboros.tools.registry import ToolEntry
+    from heretek.tools.registry import ToolEntry
 
     return [
         ToolEntry(
@@ -396,7 +396,7 @@ def get_tools():
                     "Technical (Python lines of code), Philosophical (BIBLE.md size), "
                     "Self-Concept (SYSTEM.md size). "
                     "Also patches app.html to add the Evolution tab if not yet present. "
-                    "Pushes evolution.json to razzant/ouroboros-webapp. "
+                    "Pushes evolution.json to razzant/heretek-webapp. "
                     "Safe to call anytime; takes 15-30s for full history scan."
                 ),
                 "parameters": {

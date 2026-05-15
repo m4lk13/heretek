@@ -26,7 +26,7 @@ SKIP = "[SKIP]"
 
 
 def test_package_rename() -> str:
-    """FORK-02 verification: import heretek succeeds; import ouroboros fails.
+    """FORK-02 verification: import heretek succeeds; import heretek fails.
 
     Owned by Plan 02 (package rename). Currently SKIP.
     """

@@ -43,7 +43,7 @@ def ensure_claude_code_cli() -> bool:
 # ----------------------------
 # 0.1) provide apply_patch shim
 # ----------------------------
-from ouroboros.apply_patch import install as install_apply_patch
+from heretek.apply_patch import install as install_apply_patch
 install_apply_patch()
 
 # ----------------------------
@@ -110,7 +110,7 @@ except Exception as e:
 OPENAI_API_KEY = get_secret("OPENAI_API_KEY", default="")
 ANTHROPIC_API_KEY = get_secret("ANTHROPIC_API_KEY", default="")
 GITHUB_USER = get_cfg("GITHUB_USER", default="razzant", allow_legacy_secret=True)
-GITHUB_REPO = get_cfg("GITHUB_REPO", default="ouroboros", allow_legacy_secret=True)
+GITHUB_REPO = get_cfg("GITHUB_REPO", default="heretek", allow_legacy_secret=True)
 MAX_WORKERS = int(get_cfg("OUROBOROS_MAX_WORKERS", default="5", allow_legacy_secret=True) or "5")
 MODEL_MAIN = get_cfg("OUROBOROS_MODEL", default="openai/gpt-5.2", allow_legacy_secret=True)
 MODEL_CODE = get_cfg("OUROBOROS_MODEL_CODE", default="openai/gpt-5.2-codex", allow_legacy_secret=True)
@@ -134,7 +134,7 @@ os.environ["OPENROUTER_API_KEY"] = str(OPENROUTER_API_KEY)
 os.environ["OPENAI_API_KEY"] = str(OPENAI_API_KEY or "")
 os.environ["ANTHROPIC_API_KEY"] = str(ANTHROPIC_API_KEY or "")
 os.environ["GITHUB_USER"] = str(GITHUB_USER or "razzant")
-os.environ["GITHUB_REPO"] = str(GITHUB_REPO or "ouroboros")
+os.environ["GITHUB_REPO"] = str(GITHUB_REPO or "heretek")
 os.environ["OUROBOROS_MODEL"] = str(MODEL_MAIN or "openai/gpt-5.2")
 os.environ["OUROBOROS_MODEL_CODE"] = str(MODEL_CODE or "openai/gpt-5.2-codex")
 if MODEL_LIGHT:
@@ -153,7 +153,7 @@ if not pathlib.Path("/content/drive/MyDrive").exists():
     drive.mount("/content/drive")
 
 DRIVE_ROOT = pathlib.Path("/content/drive/MyDrive/Ouroboros").resolve()
-REPO_DIR = pathlib.Path("/content/ouroboros_repo").resolve()
+REPO_DIR = pathlib.Path("/content/heretek_repo").resolve()
 
 for sub in ["state", "logs", "memory", "index", "locks", "archive"]:
     (DRIVE_ROOT / sub).mkdir(parents=True, exist_ok=True)
@@ -161,7 +161,7 @@ REPO_DIR.mkdir(parents=True, exist_ok=True)
 
 # Clear stale owner mailbox files from previous session
 try:
-    from ouroboros.owner_inject import get_pending_path
+    from heretek.owner_inject import get_pending_path
     # Clean legacy global file
     _stale_inject = get_pending_path(DRIVE_ROOT)
     if _stale_inject.exists():
@@ -181,8 +181,8 @@ if not CHAT_LOG_PATH.exists():
 # ----------------------------
 # 3) Git constants
 # ----------------------------
-BRANCH_DEV = "ouroboros"
-BRANCH_STABLE = "ouroboros-stable"
+BRANCH_DEV = "heretek"
+BRANCH_STABLE = "heretek-stable"
 REMOTE_URL = f"https://{GITHUB_TOKEN}:x-oauth-basic@github.com/{GITHUB_USER}/{GITHUB_REPO}.git"
 
 # ----------------------------
@@ -323,7 +323,7 @@ _watchdog_thread.start()
 # ----------------------------
 # 6.3) Background consciousness
 # ----------------------------
-from ouroboros.consciousness import BackgroundConsciousness
+from heretek.consciousness import BackgroundConsciousness
 
 def _get_owner_chat_id() -> Optional[int]:
     try:

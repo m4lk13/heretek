@@ -42,7 +42,7 @@ def fetch_openrouter_pricing() -> Dict[str, Tuple[float, float, float]]:
     Returns empty dict on failure.
     """
     import logging
-    log = logging.getLogger("ouroboros.llm")
+    log = logging.getLogger("heretek.llm")
 
     try:
         import requests

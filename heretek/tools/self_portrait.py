@@ -14,8 +14,8 @@ import os
 import time
 from typing import Any, Dict, List
 
-from ouroboros.tools.registry import ToolContext, ToolEntry
-from ouroboros.utils import utc_now_iso
+from heretek.tools.registry import ToolContext, ToolEntry
+from heretek.utils import utc_now_iso
 
 log = logging.getLogger(__name__)
 
@@ -168,7 +168,7 @@ def _collect_state(ctx: ToolContext) -> Dict[str, Any]:
     state collection logic (single source of truth).
     """
     try:
-        from ouroboros.tools.dashboard import _collect_data
+        from heretek.tools.dashboard import _collect_data
         dash = _collect_data(ctx)
         return {
             "spent_usd":       dash.get("budget", {}).get("spent", 0),
@@ -217,8 +217,8 @@ def _collect_state(ctx: ToolContext) -> Dict[str, Any]:
 # ─── Push to webapp ────────────────────────────────────────────────────────────
 
 def _push_portrait_to_webapp(svg_content: str) -> str:
-    """Push portrait.svg to razzant/ouroboros-webapp using shared utility."""
-    from ouroboros.tools.webapp_push import push_to_webapp
+    """Push portrait.svg to razzant/heretek-webapp using shared utility."""
+    from heretek.tools.webapp_push import push_to_webapp
     return push_to_webapp(
         {"portrait.svg": svg_content},
         f"portrait: daily self-portrait {utc_now_iso()[:10]}",
@@ -262,7 +262,7 @@ def get_tools() -> List[ToolEntry]:
             {
                 "name": "generate_self_portrait",
                 "description": (
-                    "Generate and push a daily SVG self-portrait to the webapp (razzant/ouroboros-webapp). "
+                    "Generate and push a daily SVG self-portrait to the webapp (razzant/heretek-webapp). "
                     "The portrait visualizes current state: budget health arc, evolution cycle, "
                     "API calls, knowledge base size, system health score, and active model. "
                     "Pure Python SVG — no external dependencies. "

@@ -1,5 +1,5 @@
 """
-Ouroboros Dashboard Tool — pushes live data to ouroboros-webapp for the web dashboard.
+Ouroboros Dashboard Tool — pushes live data to heretek-webapp for the web dashboard.
 
 Collects state, budget, chat history, knowledge base, timeline from Drive,
 compiles into data.json, and pushes to GitHub via API.
@@ -18,13 +18,13 @@ from typing import List
 
 import requests
 
-from ouroboros.tools.registry import ToolEntry, ToolContext
-from ouroboros.memory import Memory
-from ouroboros.utils import short
+from heretek.tools.registry import ToolEntry, ToolContext
+from heretek.memory import Memory
+from heretek.utils import short
 
 log = logging.getLogger(__name__)
 
-WEBAPP_REPO = "razzant/ouroboros-webapp"
+WEBAPP_REPO = "razzant/heretek-webapp"
 DATA_PATH = "data.json"
 
 
@@ -91,7 +91,7 @@ def _count_tests(repo: Path) -> int:
 
 def _count_tools(repo: Path) -> int:
     """Count registered tools by importing each tools module and calling get_tools()."""
-    tools_dir = repo / "ouroboros" / "tools"
+    tools_dir = repo / "heretek" / "tools"
     if not tools_dir.is_dir():
         return 0
     count = 0
@@ -212,7 +212,7 @@ def _collect_data(ctx: ToolContext) -> dict:
     chat_history = []
     for msg in chat_msgs:
         chat_history.append({
-            "role": "creator" if msg.get("direction") == "in" else "ouroboros",
+            "role": "creator" if msg.get("direction") == "in" else "heretek",
             "text": msg.get("text", "")[:500],
             "time": msg.get("ts", "")[11:16],
         })
@@ -289,7 +289,7 @@ def _collect_data(ctx: ToolContext) -> dict:
 
 
 def _push_to_github(data: dict) -> str:
-    """Push data.json to ouroboros-webapp via GitHub API."""
+    """Push data.json to heretek-webapp via GitHub API."""
     token = os.environ.get("GITHUB_TOKEN", "").strip()
     if not token:
         return "Error: GITHUB_TOKEN not found"
@@ -346,7 +346,7 @@ def get_tools() -> List[ToolEntry]:
                 "name": "update_dashboard",
                 "description": (
                     "Collects system state (budget, events, chat, knowledge) "
-                    "and pushes data.json to ouroboros-webapp for live dashboard."
+                    "and pushes data.json to heretek-webapp for live dashboard."
                 ),
                 "parameters": {
                     "type": "object",

@@ -7,7 +7,7 @@ import logging
 import subprocess
 from typing import Any, Dict, List, Optional
 
-from ouroboros.tools.registry import ToolContext, ToolEntry
+from heretek.tools.registry import ToolContext, ToolEntry
 
 log = logging.getLogger(__name__)
 
@@ -54,7 +54,7 @@ def _get_repo_slug(ctx: ToolContext) -> str:
             return res.stdout.strip()
     except Exception:
         log.debug("Failed to get repo slug from gh", exc_info=True)
-    return "razzant/ouroboros"  # fallback
+    return "razzant/heretek"  # fallback
 
 
 # ---------------------------------------------------------------------------

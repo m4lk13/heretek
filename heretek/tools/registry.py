@@ -12,7 +12,7 @@ import pathlib
 from dataclasses import dataclass, field
 from typing import Any, Callable, Dict, List, Optional
 
-from ouroboros.utils import safe_relpath
+from heretek.utils import safe_relpath
 
 
 @dataclass
@@ -31,7 +31,7 @@ class ToolContext:
 
     repo_dir: pathlib.Path
     drive_root: pathlib.Path
-    branch_dev: str = "ouroboros"
+    branch_dev: str = "heretek"
     pending_events: List[Dict[str, Any]] = field(default_factory=list)
     current_chat_id: Optional[int] = None
     current_task_type: Optional[str] = None
@@ -94,7 +94,7 @@ CORE_TOOL_NAMES = {
 class ToolRegistry:
     """Реестр инструментов Уробороса (SSOT).
 
-    Добавить инструмент: создать модуль в ouroboros/tools/,
+    Добавить инструмент: создать модуль в heretek/tools/,
     экспортировать get_tools() -> List[ToolEntry].
     """
 
@@ -104,15 +104,15 @@ class ToolRegistry:
         self._load_modules()
 
     def _load_modules(self) -> None:
-        """Auto-discover tool modules in ouroboros/tools/ that export get_tools()."""
+        """Auto-discover tool modules in heretek/tools/ that export get_tools()."""
         import importlib
         import pkgutil
-        import ouroboros.tools as tools_pkg
+        import heretek.tools as tools_pkg
         for _importer, modname, _ispkg in pkgutil.iter_modules(tools_pkg.__path__):
             if modname.startswith("_") or modname == "registry":
                 continue
             try:
-                mod = importlib.import_module(f"ouroboros.tools.{modname}")
+                mod = importlib.import_module(f"heretek.tools.{modname}")
                 if hasattr(mod, "get_tools"):
                     for entry in mod.get_tools():
                         self._entries[entry.name] = entry

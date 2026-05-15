@@ -10,8 +10,8 @@ import asyncio
 import logging
 import httpx
 
-from ouroboros.utils import utc_now_iso
-from ouroboros.tools.registry import ToolEntry, ToolContext
+from heretek.utils import utc_now_iso
+from heretek.tools.registry import ToolEntry, ToolContext
 
 
 log = logging.getLogger(__name__)

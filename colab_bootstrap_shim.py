@@ -50,10 +50,10 @@ os.environ.setdefault("PYTHONUNBUFFERED", "1")
 
 GITHUB_TOKEN = str(os.environ["GITHUB_TOKEN"])
 GITHUB_USER = str(os.environ.get("GITHUB_USER", "razzant"))
-GITHUB_REPO = str(os.environ.get("GITHUB_REPO", "ouroboros"))
-BOOT_BRANCH = str(os.environ.get("OUROBOROS_BOOT_BRANCH", "ouroboros"))
+GITHUB_REPO = str(os.environ.get("GITHUB_REPO", "heretek"))
+BOOT_BRANCH = str(os.environ.get("OUROBOROS_BOOT_BRANCH", "heretek"))
 
-REPO_DIR = pathlib.Path("/content/ouroboros_repo").resolve()
+REPO_DIR = pathlib.Path("/content/heretek_repo").resolve()
 REMOTE_URL = f"https://{GITHUB_TOKEN}:x-oauth-basic@github.com/{GITHUB_USER}/{GITHUB_REPO}.git"
 
 if not (REPO_DIR / ".git").exists():

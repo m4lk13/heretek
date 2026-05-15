@@ -26,7 +26,7 @@ def _handle_llm_usage(evt: Dict[str, Any], ctx: Any) -> None:
     ctx.update_budget_from_usage(usage)
 
     # Log to events.jsonl for audit trail
-    from ouroboros.utils import utc_now_iso, append_jsonl
+    from heretek.utils import utc_now_iso, append_jsonl
     try:
         append_jsonl(ctx.DRIVE_ROOT / "logs" / "events.jsonl", {
             "ts": evt.get("ts", utc_now_iso()),
@@ -260,7 +260,7 @@ def _find_duplicate_task(desc: str, pending: list, running: dict) -> Optional[st
     )
 
     try:
-        from ouroboros.llm import LLMClient
+        from heretek.llm import LLMClient
         light_model = os.environ.get("OUROBOROS_MODEL_LIGHT") or "x-ai/grok-3-mini"
         client = LLMClient()
         resp_msg, usage = client.chat(
@@ -391,7 +391,7 @@ def _handle_send_photo(evt: Dict[str, Any], ctx: Any) -> None:
 
 def _handle_owner_message_injected(evt: Dict[str, Any], ctx: Any) -> None:
     """Log owner_message_injected to events.jsonl for health invariant #5 (duplicate processing)."""
-    from ouroboros.utils import utc_now_iso
+    from heretek.utils import utc_now_iso
     try:
         ctx.append_jsonl(ctx.DRIVE_ROOT / "logs" / "events.jsonl", {
             "ts": evt.get("ts", utc_now_iso()),

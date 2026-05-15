@@ -14,10 +14,10 @@ import os
 import pathlib
 from typing import Any, Dict, List, Optional, Tuple
 
-from ouroboros.utils import (
+from heretek.utils import (
     utc_now_iso, read_text, clip_text, estimate_tokens, get_git_info,
 )
-from ouroboros.memory import Memory
+from heretek.memory import Memory
 
 log = logging.getLogger(__name__)
 
@@ -641,7 +641,7 @@ def compact_tool_history_llm(messages: list, keep_recent: int = 6) -> list:
     )
 
     try:
-        from ouroboros.llm import LLMClient
+        from heretek.llm import LLMClient
         light_model = os.environ.get("OUROBOROS_MODEL_LIGHT") or "x-ai/grok-3-mini"
         client = LLMClient()
         resp_msg, _usage = client.chat(
