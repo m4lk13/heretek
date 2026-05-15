@@ -3,10 +3,10 @@
 > A locally-hosted, self-modifying, chaos-heretic Telegram shitposting bot.
 > Born from a fork of [razzant/ouroboros](https://github.com/razzant/ouroboros), reborn without the Omnissiah.
 
-**Status:** Planning phase — v0.0.0
+**Status:** Phase 1 complete (Foundation + Local LLM) — v0.1.0
 **Host:** MacBook Pro 16" M1 Max, 32GB RAM, macOS Tahoe 26.3.1
 **Owner:** Tech-Priest (Evgeniy)
-**Last updated:** 2026-05-14
+**Last updated:** 2026-05-15
 
 ---
 
@@ -81,7 +81,7 @@ Build a Telegram bot that:
 │  Ollama (Metal backend, native macOS)            │
 │                                                  │
 │  ├── qwen3.6:35b-a3b-q4_K_M     [PRIMARY]        │
-│  │   ~20GB on disk, 3B active params/token       │
+│  │   ~24GB on disk, 3B active params/token       │
 │  │   For: chat, shitposting, self-modify reasoning│
 │  │                                               │
 │  └── qwen3:4b                   [BACKGROUND]     │
@@ -113,12 +113,12 @@ The framework already solves the unglamorous problems: Telegram message routing 
 - **MoE = fast despite size.** Only ~3B params active per token. On M1 Max, expect 25-40 tok/s.
 - **262K context.** Can hold entire Telegram chat history without summarization tricks.
 - **Bilingual.** Qwen is genuinely strong in Russian — better than Llama-family models. Critical for our use case.
-- **Q4_K_M fits in 20GB.** Leaves ~12GB for KV cache, OS, browser tool, your other work.
+- **Q4_K_M fits in 24GB.** Leaves ~8GB for KV cache, OS, and your other work. (Browser tool removed in Phase 1; tighter than originally estimated — on a 32GB host the primary model can OOM under memory pressure, so the smoke test exposes `OLLAMA_MODEL=qwen3:4b` as a cheap-wire override for low-RAM verification.)
 - **Free, open weights.** No API keys, no Anthropic-style refusals, no per-token cost.
 
 ### Why a second small model?
 
-The background consciousness loop runs constantly. Keeping the 20GB model hot for that wastes RAM that could go to your IDE, browser, Figma, etc. The 4B model is cheap to keep warm, fast for low-stakes commentary, and only the primary model loads when actually responding to messages.
+The background consciousness loop runs constantly. Keeping the 24GB model hot for that wastes RAM that could go to your IDE, browser, Figma, etc. The 4B model is cheap to keep warm, fast for low-stakes commentary, and only the primary model loads when actually responding to messages.
 
 ### Why chaos heretic persona?
 
@@ -139,7 +139,7 @@ It's the soul of Ouroboros. Removing it makes Heretek just "a Telegram bot with 
 | Telegram token exposure | Medium | Store in macOS Keychain via `security` CLI or `.env` in gitignored directory. Never commit. |
 | First-sender-becomes-owner footgun | Medium | Hardcode owner Telegram user ID in `SYSTEM.md` instead of relying on first-message detection. |
 | Bot persona drifts into harmful territory | Medium | Keep persona "chaotic but not cruel" guardrails in `CODEX_HERETICUS.md`. No real-person targeting, no doxxing, no slurs. |
-| Disk fills with model files | Low | 20GB primary + 2.5GB background + tools. Need ~30GB free on `~/Library/.ollama/` or wherever Ollama stores. Check `du -sh ~/.ollama` periodically. |
+| Disk fills with model files | Low | 24GB primary + 2.5GB background + tools. Need ~32GB free on `~/Library/.ollama/` or wherever Ollama stores. Check `du -sh ~/.ollama` periodically. |
 | Browser tool (Playwright) spawns runaway tabs | Low | Add headless mode flag, max-tabs limit. |
 | Background consciousness loops forever | Low | Existing v6.2.0 has circuit breaker (3 empty responses → pause). Keep that. |
 | Self-modification pushes to wrong branch | High | `git_ops.py` checks `current branch != "main"` before any push. Hard refuse otherwise. |
@@ -150,26 +150,26 @@ It's the soul of Ouroboros. Removing it makes Heretek just "a Telegram bot with 
 
 ### Phase 0: Foundation (Day 1, ~2 hours)
 
-- [ ] Fork `razzant/ouroboros` → `<your-user>/heretek` on GitHub
-- [ ] `git clone` the fork locally to `~/code/heretek`
-- [ ] Create branches: `playground` (where bot lives), `last-known-good` (safety tag)
-- [ ] Install Ollama: `brew install ollama`
-- [ ] Pull background model first (smaller, faster smoke test): `ollama pull qwen3:4b`
-- [ ] Verify Metal acceleration works: `ollama run qwen3:4b "respond in one sentence"` — should print fast
-- [ ] Pull primary model: `ollama pull qwen3.6:35b-a3b-q4_K_M` (~20GB download, takes a while)
-- [ ] Smoke test primary: `ollama run qwen3.6:35b-a3b-q4_K_M "ответь по-русски одним предложением"` — verify Russian works
+- [x] Fork `razzant/ouroboros` → `<your-user>/heretek` on GitHub
+- [x] Fork overlaid in-place at `/Users/evgeniy/Projects/140526_heretek/` — existing planning directory preserved (see `.planning/phases/01-foundation-local-llm/01-01-SUMMARY.md`)
+- [x] Create branches: `playground` (where bot lives), `last-known-good` (safety tag)
+- [x] Install Ollama: `brew install ollama`
+- [x] Pull background model first (smaller, faster smoke test): `ollama pull qwen3:4b`
+- [x] Verify Metal acceleration works: `ollama run qwen3:4b "respond in one sentence"` — should print fast
+- [x] Pull primary model: `ollama pull qwen3.6:35b-a3b-q4_K_M` (~24GB download, takes a while)
+- [x] Smoke test primary: `ollama run qwen3.6:35b-a3b-q4_K_M "ответь по-русски одним предложением"` — verify Russian works (`python scripts/smoke_test.py` now covers this end-to-end via the LLMClient wire)
 
-### Phase 1: LLM swap (Day 1-2, ~3 hours)
+### Phase 1: LLM swap (Day 1-2, ~3 hours) — DONE
 
-- [ ] Create Python virtual env: `python3 -m venv .venv && source .venv/bin/activate`
-- [ ] Install requirements: `pip install -r requirements.txt`
-- [ ] Patch `ouroboros/llm.py` to point at Ollama:
-  - Replace OpenRouter base URL with `http://localhost:11434/v1`
-  - Replace API key with literal `"ollama"` (Ollama ignores it but OpenAI client requires non-empty)
-  - Update model name env var: `OLLAMA_MODEL=qwen3.6:35b-a3b-q4_K_M`
-  - Update pricing lookup to return 0 (or rip out entirely)
-- [ ] Patch fallback chain to use local models only
-- [ ] Run smoke test: bot replies to a test message
+- [x] Create Python virtual env: `python3 -m venv .venv && source .venv/bin/activate`
+- [x] Install requirements: `pip install -r requirements.txt`
+- [x] Patch `heretek/llm.py` (renamed in Plan 02) to point at Ollama:
+  - Default base URL: `http://127.0.0.1:11434/v1` (IPv4-explicit; httpx-IPv6-fallback fix)
+  - `api_key="ollama"` literal (OpenAI SDK requires non-empty; Ollama ignores it)
+  - `OLLAMA_MODEL=qwen3.6:35b-a3b-q4_K_M` env var; `OLLAMA_MODEL_LIGHT=qwen3:4b` for the background loop
+  - Budget tracker neutered: `update_budget_from_usage` accumulates tokens only, never `spent_usd`; `budget_remaining()` returns `inf`; no HTTP drift-check
+- [x] Patch fallback chain to use local models only (`tools/github.py`, `tools/review.py`, `tools/browser.py` hard-deleted in Plan 03)
+- [x] Run smoke test: `python scripts/smoke_test.py` — exercises bilingual RU+EN reply via `heretek.llm.LLMClient` against Ollama
 
 ### Phase 2: Strip and rebrand (Day 2, ~2 hours)
 
@@ -212,14 +212,29 @@ It's the soul of Ouroboros. Removing it makes Heretek just "a Telegram bot with 
 
 ## 6. Current state
 
-**Status: Pre-Phase 0. Nothing built yet.**
+**Status: Phase 1 complete — Foundation + Local LLM shipped.**
+
+Last updated: 2026-05-15
+
+What landed in Phase 1:
+- Fork of `razzant/ouroboros@v6.2.0` overlaid in-place at the project root; `playground` branch live, `last-known-good` annotated tag at the upstream v6.2.0 commit
+- Package renamed `ouroboros/` → `heretek/`; `python -m supervisor` is the local boot entry point
+- Hard-deleted: `tools/github.py`, `tools/review.py`, `tools/browser.py`, `tools/health.py`, `tools/search.py`, package-root `review.py`
+- Stripped: cloud LLM env-var loaders (OPENROUTER/OPENAI/ANTHROPIC), OpenRouter HTTP drift-check in the budget tracker, Playwright dep
+- Wired: Ollama at `http://127.0.0.1:11434/v1` with `api_key="ollama"`; primary `qwen3.6:35b-a3b-q4_K_M` via `OLLAMA_MODEL`; light `qwen3:4b` via `OLLAMA_MODEL_LIGHT`; context cap `HERETEK_MAX_CONTEXT_TOKENS=32000`
+- Robustness: `LLMClient` forces IPv4 (httpx does not fall back from IPv6 ::1 to 127.0.0.1 cleanly) and uses `trust_env=False` on its httpx client (bypasses macOS system-wide HTTP proxies that intercept localhost)
+- Budget tracker public shape preserved; cost zeroed; per-call token log at `logs/tokens.jsonl` (JSONL with `{ts, model, prompt_tokens, completion_tokens, total}`)
+- Smoke test `scripts/smoke_test.py` covers: package rename, no cloud hosts, models-pulled precondition, bilingual RU+EN Ollama reply (RU asserts Cyrillic in reply, EN asserts Latin)
+
+What's next: Phase 2 (Persona + Identity) — author `CODEX_HERETICUS.md` and `SYSTEM.md`, prove the bot has a chaos-heretic voice and persistent identity across restarts.
 
 When resuming:
-1. Check this section for the actual current state (update as we progress)
-2. Check `playground` branch HEAD on GitHub for actual code state
-3. Run `ollama list` to verify which models are pulled
-4. Run `ollama ps` to verify which are loaded
-5. Tail `~/code/heretek/logs/state.jsonl` for recent activity
+1. Check this section first.
+2. `git log --oneline -20` on `playground` for recent commits.
+3. `ollama list` should show both `qwen3.6:35b-a3b-q4_K_M` and `qwen3:4b`.
+4. `python scripts/smoke_test.py --static-only` is the fast-feedback gate (2 PASS, ~3s, no Ollama dependency).
+5. `python scripts/smoke_test.py` is the end-to-end gate. On a 32GB host the 24GB primary model can OOM Ollama — set `OLLAMA_MODEL=qwen3:4b` to use the light model for the wire check.
+6. Tail `./logs/tokens.jsonl` for per-call token records.
 
 ---
 
