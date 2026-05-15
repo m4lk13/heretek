@@ -3,13 +3,13 @@ gsd_state_version: 1.0
 milestone: v6.2
 milestone_name: milestone
 status: in_progress
-stopped_at: Completed 01-04-PLAN.md (LLM-01..05 + FORK-04 — Ollama wiring, 32K context cap, JSONL token logger, budget tracker neutered)
-last_updated: "2026-05-15T13:10:00Z"
+stopped_at: "Phase 1 complete — Foundation + Local LLM shipped (10 requirements: FORK-01..04, LLM-01..06)"
+last_updated: "2026-05-15T13:30:00Z"
 progress:
   total_phases: 4
-  completed_phases: 0
+  completed_phases: 1
   total_plans: 5
-  completed_plans: 4
+  completed_plans: 5
 ---
 
 # Project State
@@ -23,27 +23,31 @@ See: .planning/PROJECT.md (updated 2026-05-14)
 
 ## Current Position
 
-Phase: 01 (foundation-local-llm) — EXECUTING
-Plan: 5 of 5
+Phase: 2 of 4 (Persona + Identity) — READY TO PLAN
+Plan: 0 of ? in current phase
+Status: Phase 1 shipped (foundation + local LLM); awaiting `/gsd:plan-phase 2`
+Last activity: 2026-05-15 — Phase 1 shipped (5/5 plans complete)
+
+Progress: [██░░░░░░░░] 25%
 
 ## Performance Metrics
 
 **Velocity:**
 
-- Total plans completed: 4
-- Average duration: ~7-8 min
-- Total execution time: ~31 min
+- Total plans completed: 5
+- Average duration: ~9 min
+- Total execution time: ~46 min
 
 **By Phase:**
 
 | Phase | Plans | Total | Avg/Plan |
 |-------|-------|-------|----------|
-| 01-foundation-local-llm | 4 | ~31 min | ~8 min |
+| 01-foundation-local-llm | 5 | ~46 min | ~9 min |
 
 **Recent Trend:**
 
-- Last 5 plans: 01-01 (~10 min), 01-02 (5 min, 3 tasks, 43 files), 01-03 (9 min, 4 tasks, 15 files), 01-04 (~7 min, 3 tasks, 5 files)
-- Trend: stable
+- Last 5 plans: 01-01 (~10 min), 01-02 (5 min, 3 tasks, 43 files), 01-03 (9 min, 4 tasks, 15 files), 01-04 (~7 min, 3 tasks, 5 files), 01-05 (~15 min, 3 tasks, 4 files)
+- Trend: stable; Plan 05 longer due to two real-Ollama-call deviation fixes (IPv6 fallback, system-proxy bypass)
 
 *Updated after each plan completion*
 
@@ -51,6 +55,7 @@ Plan: 5 of 5
 |------|----------|-------|-------|
 | Phase 01-foundation-local-llm P03 | 9 min | 4 tasks | 15 files |
 | Phase 01-foundation-local-llm P04 | 7 min | 3 tasks | 5 files |
+| Phase 01-foundation-local-llm P05 | 15 min | 3 tasks | 4 files |
 
 ## Accumulated Context
 
@@ -79,6 +84,10 @@ Recent decisions affecting current work:
 - [Phase 01-foundation-local-llm]: Plan 04 — Soft cap reduced from upstream 200000 to 32000 (HERETEK_MAX_CONTEXT_TOKENS), M1 Max RAM-driven not cloud-budget-driven; override-able via env var
 - [Phase 01-foundation-local-llm]: Plan 04 — Removed spent_usd accumulation line entirely (dead code on Ollama); token accumulators preserved for observability
 - [Phase 01-foundation-local-llm]: Plan 04 — Residual OUROBOROS_* env vars in heretek/loop.py, heretek/tools/*, supervisor/events.py, supervisor/workers.py left in place per scope-boundary rule; logged in deferred-items.md for a future env-var hygiene pass
+- [Phase 01-foundation-local-llm]: Plan 05 — LLMClient default base URL forced to IPv4 (`http://127.0.0.1:11434/v1`); httpx does not fall back IPv6→IPv4 on connect-refused, so `localhost` resolved AAAA→A would surface as `APIConnectionError: Connection error.` even with Ollama healthy. Discovered during smoke-test bilingual flip.
+- [Phase 01-foundation-local-llm]: Plan 05 — LLMClient uses `httpx.Client(trust_env=False)` to bypass macOS system-wide HTTP proxies (scutil --proxy). Python's urllib.request.getproxies() does NOT honor the macOS exception list, so a localhost-scoped proxy still gets applied to `127.0.0.1:11434` and fails with "Server disconnected without sending a response." OLLAMA_BASE_URL is local by design — bypassing env-discovered proxies is correct.
+- [Phase 01-foundation-local-llm]: Plan 05 — Smoke test bilingual subtest uses `OLLAMA_MODEL` (primary by default); on low-RAM hosts the 24GB primary can OOM Ollama mid-load. Smoke test prints an actionable hint suggesting `OLLAMA_MODEL=qwen3:4b` override. Verified GREEN: 4 PASS with light-model override; FAIL-with-hint when default 24GB model OOMs.
+- [Phase 01-foundation-local-llm]: Plan 05 — CLAUDE.md model size 20GB→24GB correction across §0/§2/§3/§4/§5; §6 Current state flipped from "Pre-Phase 0" to a Phase-1-complete summary with resume protocol pointing at `scripts/smoke_test.py --static-only` as the fast-feedback gate.
 
 ### Pending Todos
 
@@ -87,11 +96,12 @@ None yet.
 ### Blockers/Concerns
 
 - Phase 4 requires Telegram bot token and owner user ID — these are not needed until Phase 4 begins (per PROJECT.md Key Decisions)
-- Ollama model pull: `qwen3.6:35b-a3b-q4_K_M` (~20GB) still required before any production use — `ollama list` should confirm before Phase 4 launch. `qwen3:4b` likely sufficient for Plan 05's smoke-test gate (cheaper to verify the wire); Ollama is reachable on localhost:11434 as of Plan 04 completion.
-- Residual OUROBOROS_* env vars remain in non-Plan-04-modified files (heretek/loop.py, tools/*, supervisor/events.py, supervisor/workers.py) — see .planning/phases/01-foundation-local-llm/deferred-items.md. If Plan 05's Ollama call exercises the tool-loop fallback chain or a tool, the cloud-era defaults may surface as actual mis-routes; recommend a sanity sweep before flipping the smoke test.
+- 32GB host RAM constraint: 24GB primary model can OOM Ollama under memory pressure during fresh load. Verified during Plan 05 smoke test. Workaround: use `OLLAMA_MODEL=qwen3:4b` for cheap-wire verification; close other memory hogs before invoking the primary model. Phase 4 production may need the same workaround on this host class.
+- Residual OUROBOROS_* env vars remain in non-Plan-04-modified files (heretek/loop.py, tools/*, supervisor/events.py, supervisor/workers.py) — see .planning/phases/01-foundation-local-llm/deferred-items.md. Did NOT surface during Plan 05's bilingual smoke test because `LLMClient.chat()` is called directly without going through the tool loop or fallback chain. Phase 2 (persona) will exercise the full prompt assembly path and may need to clear these.
 
 ## Session Continuity
 
-Last session: 2026-05-15T13:10:00Z
-Stopped at: Completed 01-04-PLAN.md (LLM-01..05 + FORK-04 — Ollama wiring, 32K context cap, JSONL token logger, budget tracker neutered)
-Resume file: .planning/phases/01-foundation-local-llm/05-PLAN.md
+Last session: 2026-05-15T13:30:00Z
+Stopped at: Phase 1 complete — Foundation + Local LLM shipped (5/5 plans). All 10 Phase-1 requirements (FORK-01..04, LLM-01..06) traceable to commits on `playground`.
+Resume file: None — ready for `/gsd:plan-phase 2` (Persona + Identity)
+Recommended next: `git push -u origin playground` to publish stripped/renamed Heretek to GitHub (first public visibility), then plan Phase 2.

@@ -12,7 +12,7 @@ Fork Ouroboros v6.2.0, swap its cloud LLM for local Ollama, dress it in a chaos-
 
 Decimal phases appear between their surrounding integers in numeric order.
 
-- [ ] **Phase 1: Foundation + Local LLM** - Fork, rename, strip, and wire local Ollama inference; smoke-test bilingual output
+- [x] **Phase 1: Foundation + Local LLM** - Fork, rename, strip, and wire local Ollama inference; smoke-test bilingual output
 - [ ] **Phase 2: Persona + Identity** - Author CODEX_HERETICUS.md and SYSTEM.md; prove the bot has a voice and persistent identity
 - [ ] **Phase 3: Self-Modify Guardrails** - Branch protection, dry-run gate, /sanction and /heresy commands wired and tested offline
 - [ ] **Phase 4: Launch + First Evolution** - Deploy to private Telegram group; complete one full /evolve → diff → /sanction → playground-commit loop
@@ -34,7 +34,7 @@ Decimal phases appear between their surrounding integers in numeric order.
 - [x] 02-PLAN.md — Rename `ouroboros/` → `heretek/`, author `supervisor/__main__.py`, flip test_package_rename to real check
 - [x] 03-PLAN.md — Hard-delete github/review/browser tools + lazy-import call sites, strip cloud env loaders, flip test_no_cloud_hosts
 - [x] 04-PLAN.md — Patch `heretek/llm.py` for Ollama + JSONL token logger, neuter supervisor/state.py budget, wire OLLAMA_MODEL_LIGHT + HERETEK_MAX_CONTEXT_TOKENS
-- [ ] 05-PLAN.md — Flip test_bilingual_ollama_reply to real RU+EN call, fix CLAUDE.md 24GB, mark Phase 1 complete in roadmap/state
+- [x] 05-PLAN.md — Flip test_bilingual_ollama_reply to real RU+EN call, fix CLAUDE.md 24GB, mark Phase 1 complete in roadmap/state
 
 ### Phase 2: Persona + Identity
 **Goal**: The bot speaks as the chaos heretic defined in CODEX_HERETICUS.md and its identity survives a process restart
@@ -80,7 +80,7 @@ Phases execute in numeric order: 1 → 2 → 3 → 4
 
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
-| 1. Foundation + Local LLM | 4/5 | In Progress | - |
+| 1. Foundation + Local LLM | 5/5 | Complete | 2026-05-15 |
 | 2. Persona + Identity | 0/? | Not started | - |
 | 3. Self-Modify Guardrails | 0/? | Not started | - |
 | 4. Launch + First Evolution | 0/? | Not started | - |

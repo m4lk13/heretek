@@ -19,7 +19,7 @@
 - [x] **LLM-03**: Configure secondary model `qwen3:4b` for background consciousness loop via `OLLAMA_MODEL_LIGHT`
 - [x] **LLM-04**: Cap context to 32K tokens initially via `HERETEK_MAX_CONTEXT_TOKENS=32000` to prevent 32GB-host OOM
 - [x] **LLM-05**: Patch fallback chain to use local Ollama models only (no OpenRouter/OpenAI/Anthropic fallback)
-- [ ] **LLM-06**: Smoke-test bot replies in both English and Russian via Ollama (verifies Metal acceleration + Qwen bilingual)  <!-- Partial: Plan 01-02 delivered `python -m supervisor` entry point; bilingual reply test gated on Plan 05 -->
+- [x] **LLM-06**: Smoke-test bot replies in both English and Russian via Ollama (verifies Metal acceleration + Qwen bilingual)  <!-- Plan 05 flipped `test_bilingual_ollama_reply` from SKIP to a real end-to-end RU+EN call via heretek.llm.LLMClient. Verified GREEN with OLLAMA_MODEL=qwen3:4b on the 32GB host (24GB primary OOMs Ollama under memory pressure; light-model override is the documented cheap-wire path). -->
 
 
 ### Persona (PERS)
@@ -92,7 +92,7 @@ Populated by roadmapper. Each requirement maps to exactly one phase.
 | LLM-03 | Phase 1 | Complete |
 | LLM-04 | Phase 1 | Complete |
 | LLM-05 | Phase 1 | Complete |
-| LLM-06 | Phase 1 | Partial (Plan 01-02 entry point; Plan 05 bilingual test) |
+| LLM-06 | Phase 1 | Complete |
 | PERS-01 | Phase 2 | Pending |
 | PERS-02 | Phase 2 | Pending |
 | PERS-03 | Phase 2 | Pending |
@@ -121,4 +121,4 @@ Populated by roadmapper. Each requirement maps to exactly one phase.
 
 ---
 *Requirements defined: 2026-05-14*
-*Last updated: 2026-05-14 — traceability populated by roadmapper*
+*Last updated: 2026-05-15 — Phase 1 closed; LLM-06 marked Complete by Plan 05*
