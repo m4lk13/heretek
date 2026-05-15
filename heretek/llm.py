@@ -1,22 +1,64 @@
 """
-Уроборос — LLM-клиент.
+Heretek — LLM-клиент.
 
-Plan 03 strip note: cloud LLM env var loaders, the upstream cloud pricing
-API, the per-generation cost-fetch helper, and cloud-provider custom HTTP
-headers have all been removed silently. The LLMClient class shell and its
-chat()/vision_query() public methods are preserved so Plan 04 can patch them
-onto Ollama on a clean canvas. Until Plan 04 lands, instantiating LLMClient
-yields a client with empty base_url/api_key — it will not make any network
-calls.
+Plan 04 swap: LLMClient now defaults to local Ollama
+(http://localhost:11434/v1 with api_key="ollama"). The OpenAI Python SDK is
+wire-compatible with Ollama's /v1/chat/completions endpoint, so only the
+constructor defaults change; the chat()/vision_query() bodies are preserved.
+
+Model env vars normalized to OLLAMA_* (was OUROBOROS_*):
+    OLLAMA_MODEL          primary model    (default: qwen3.6:35b-a3b-q4_K_M)
+    OLLAMA_MODEL_LIGHT    background model (default: qwen3:4b)
+
+A best-effort JSONL token logger (_log_tokens) appends one
+{ts, model, prompt_tokens, completion_tokens, total} record to
+logs/tokens.jsonl after every chat() call. Logging failures are swallowed —
+the LLM call path must never break on disk I/O.
 """
 
 from __future__ import annotations
 
+import datetime as _datetime
+import json as _json
 import logging
 import os
+import pathlib as _pathlib
 from typing import Any, Dict, List, Optional, Tuple
 
 log = logging.getLogger(__name__)
+
+
+# ---------------------------------------------------------------------------
+# JSONL token logger (Plan 04: FORK-04)
+# ---------------------------------------------------------------------------
+
+_TOKENS_LOG_PATH = _pathlib.Path("logs/tokens.jsonl")
+
+
+def _log_tokens(model: str, prompt_tokens: int, completion_tokens: int) -> None:
+    """Append one JSONL record to logs/tokens.jsonl after each LLM call.
+
+    Best-effort: any I/O exception is swallowed so the LLM call path never
+    breaks on logging failure. Schema:
+        {"ts": "<iso-utc-Z>", "model": "<tag>",
+         "prompt_tokens": <int>, "completion_tokens": <int>, "total": <int>}
+    """
+    try:
+        _TOKENS_LOG_PATH.parent.mkdir(parents=True, exist_ok=True)
+        prompt = int(prompt_tokens or 0)
+        completion = int(completion_tokens or 0)
+        record = {
+            "ts": _datetime.datetime.utcnow().isoformat() + "Z",
+            "model": model,
+            "prompt_tokens": prompt,
+            "completion_tokens": completion,
+            "total": prompt + completion,
+        }
+        with _TOKENS_LOG_PATH.open("a", encoding="utf-8") as f:
+            f.write(_json.dumps(record) + "\n")
+    except OSError:
+        # Logging is best-effort; never break the LLM call path.
+        pass
 
 
 def normalize_reasoning_effort(value: str, default: str = "medium") -> str:
@@ -39,9 +81,11 @@ def add_usage(total: Dict[str, Any], usage: Dict[str, Any]) -> None:
 
 
 class LLMClient:
-    """LLM client shell. Plan 04 will point this at local Ollama.
+    """LLM client wired to local Ollama (OpenAI-compatible /v1 endpoint).
 
-    Cloud LLM env vars are intentionally NOT read — Heretek is local-only.
+    Defaults route to http://localhost:11434/v1 with api_key="ollama".
+    Override via OLLAMA_BASE_URL / OLLAMA_API_KEY env vars, or pass explicit
+    constructor arguments.
     """
 
     def __init__(
@@ -49,9 +93,12 @@ class LLMClient:
         api_key: Optional[str] = None,
         base_url: Optional[str] = None,
     ):
-        # No cloud env var fallback. Plan 04 will populate Ollama defaults.
-        self._api_key = api_key or ""
-        self._base_url = base_url or ""
+        # Ollama defaults. Ollama ignores the api_key but the OpenAI SDK
+        # requires a non-empty string — the literal "ollama" is conventional.
+        self._api_key = api_key or os.environ.get("OLLAMA_API_KEY", "ollama")
+        self._base_url = base_url or os.environ.get(
+            "OLLAMA_BASE_URL", "http://localhost:11434/v1"
+        )
         self._client = None
 
     def _get_client(self):
@@ -112,6 +159,16 @@ class LLMClient:
                 if cache_write:
                     usage["cache_write_tokens"] = int(cache_write)
 
+        # JSONL token log (best-effort — never break the LLM call path).
+        try:
+            _log_tokens(
+                model=model,
+                prompt_tokens=int(usage.get("prompt_tokens") or 0),
+                completion_tokens=int(usage.get("completion_tokens") or 0),
+            )
+        except Exception:
+            log.debug("Token logging failed", exc_info=True)
+
         return msg, usage
 
     def vision_query(
@@ -166,23 +223,36 @@ class LLMClient:
         return text, usage
 
     def default_model(self) -> str:
-        """Return the single default model from env. Plan 04 will rename to OLLAMA_MODEL."""
-        return os.environ.get("OUROBOROS_MODEL", "")
+        """Return the primary Ollama model tag from OLLAMA_MODEL env var."""
+        return os.environ.get("OLLAMA_MODEL", "qwen3.6:35b-a3b-q4_K_M")
 
     def available_models(self) -> List[str]:
-        """Return list of available models from env (for switch_model tool schema).
-
-        Plan 04 will rename OUROBOROS_MODEL* → OLLAMA_MODEL*.
-        """
-        main = os.environ.get("OUROBOROS_MODEL", "")
-        code = os.environ.get("OUROBOROS_MODEL_CODE", "")
-        light = os.environ.get("OUROBOROS_MODEL_LIGHT", "")
-        models = [m for m in (main, code, light) if m]
-        # de-dupe preserving order
+        """Return list of available Ollama model tags (de-duped, in order)."""
+        models_dict = available_models()
         seen = set()
         out: List[str] = []
-        for m in models:
-            if m not in seen:
-                seen.add(m)
-                out.append(m)
+        for tag in (models_dict["main"], models_dict["code"], models_dict["light"]):
+            if tag and tag not in seen:
+                seen.add(tag)
+                out.append(tag)
         return out
+
+
+# ---------------------------------------------------------------------------
+# Module-level model registry (Plan 04: LLM-02, LLM-03)
+# ---------------------------------------------------------------------------
+
+def available_models() -> Dict[str, str]:
+    """Return the Ollama model tag set this Heretek install is wired to use.
+
+    Heretek runs everything on Qwen — no separate code-specialized model —
+    so "code" aliases to "main" to keep any upstream caller happy without
+    requiring a separate model pull.
+    """
+    main = os.environ.get("OLLAMA_MODEL", "qwen3.6:35b-a3b-q4_K_M")
+    light = os.environ.get("OLLAMA_MODEL_LIGHT", "qwen3:4b")
+    return {
+        "main": main,
+        "code": main,
+        "light": light,
+    }
