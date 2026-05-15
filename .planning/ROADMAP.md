@@ -31,7 +31,7 @@ Decimal phases appear between their surrounding integers in numeric order.
   5. Bot does not attempt to contact OpenRouter, OpenAI, or Anthropic — only localhost:11434
 **Plans**: 5 plans
 - [x] 01-PLAN.md — Fork upstream, overlay into existing dir, create playground + last-known-good, ship Wave 0 smoke test scaffold
-- [ ] 02-PLAN.md — Rename `ouroboros/` → `heretek/`, author `supervisor/__main__.py`, flip test_package_rename to real check
+- [x] 02-PLAN.md — Rename `ouroboros/` → `heretek/`, author `supervisor/__main__.py`, flip test_package_rename to real check
 - [ ] 03-PLAN.md — Hard-delete github/review/browser tools + lazy-import call sites, strip cloud env loaders, flip test_no_cloud_hosts
 - [ ] 04-PLAN.md — Patch `heretek/llm.py` for Ollama + JSONL token logger, neuter supervisor/state.py budget, wire OLLAMA_MODEL_LIGHT + HERETEK_MAX_CONTEXT_TOKENS
 - [ ] 05-PLAN.md — Flip test_bilingual_ollama_reply to real RU+EN call, fix CLAUDE.md 24GB, mark Phase 1 complete in roadmap/state
@@ -80,7 +80,7 @@ Phases execute in numeric order: 1 → 2 → 3 → 4
 
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
-| 1. Foundation + Local LLM | 1/5 | In Progress | - |
+| 1. Foundation + Local LLM | 2/5 | In Progress | - |
 | 2. Persona + Identity | 0/? | Not started | - |
 | 3. Self-Modify Guardrails | 0/? | Not started | - |
 | 4. Launch + First Evolution | 0/? | Not started | - |

@@ -8,7 +8,7 @@
 ### Foundation & Fork (FORK)
 
 - [x] **FORK-01**: Fork `razzant/ouroboros` v6.2.0 to GitHub as `<owner>/heretek`, clone locally to `~/code/heretek` (or repo root), create `playground` and `last-known-good` branches
-- [ ] **FORK-02**: Rename `ouroboros/` Python package to `heretek/`; update `pyproject.toml`, imports, and references
+- [x] **FORK-02**: Rename `ouroboros/` Python package to `heretek/`; update `pyproject.toml`, imports, and references
 - [ ] **FORK-03**: Remove unneeded modules: `tools/github.py`, `tools/review.py` (multi-model), browser/Playwright tool (`tools/browser.py`)
 - [ ] **FORK-04**: Neuter budget tracking — replace cost-calculation logic with a token counter that just logs (local inference is free)
 
@@ -19,7 +19,8 @@
 - [ ] **LLM-03**: Configure secondary model `qwen3:4b` for background consciousness loop via `OLLAMA_MODEL_LIGHT`
 - [ ] **LLM-04**: Cap context to 32K tokens initially via `HERETEK_MAX_CONTEXT_TOKENS=32000` to prevent 32GB-host OOM
 - [ ] **LLM-05**: Patch fallback chain to use local Ollama models only (no OpenRouter/OpenAI/Anthropic fallback)
-- [ ] **LLM-06**: Smoke-test bot replies in both English and Russian via Ollama (verifies Metal acceleration + Qwen bilingual)
+- [ ] **LLM-06**: Smoke-test bot replies in both English and Russian via Ollama (verifies Metal acceleration + Qwen bilingual)  <!-- Partial: Plan 01-02 delivered `python -m supervisor` entry point; bilingual reply test gated on Plan 05 -->
+
 
 ### Persona (PERS)
 
@@ -83,7 +84,7 @@ Populated by roadmapper. Each requirement maps to exactly one phase.
 | Requirement | Phase | Status |
 |-------------|-------|--------|
 | FORK-01 | Phase 1 | Complete |
-| FORK-02 | Phase 1 | Pending |
+| FORK-02 | Phase 1 | Complete |
 | FORK-03 | Phase 1 | Pending |
 | FORK-04 | Phase 1 | Pending |
 | LLM-01 | Phase 1 | Pending |
@@ -91,7 +92,7 @@ Populated by roadmapper. Each requirement maps to exactly one phase.
 | LLM-03 | Phase 1 | Pending |
 | LLM-04 | Phase 1 | Pending |
 | LLM-05 | Phase 1 | Pending |
-| LLM-06 | Phase 1 | Pending |
+| LLM-06 | Phase 1 | Partial (Plan 01-02 entry point; Plan 05 bilingual test) |
 | PERS-01 | Phase 2 | Pending |
 | PERS-02 | Phase 2 | Pending |
 | PERS-03 | Phase 2 | Pending |
