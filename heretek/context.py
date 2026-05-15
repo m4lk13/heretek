@@ -1,8 +1,13 @@
 """
-Ouroboros context builder.
+Heretek context builder.
 
 Assembles LLM context from prompts, memory, logs, and runtime state.
 Extracted from agent.py to keep the agent thin and focused.
+
+Plan 04 wiring: the soft-cap on assembled message tokens reads from the
+HERETEK_MAX_CONTEXT_TOKENS env var (default 32000). The cap is intentionally
+well below Qwen 3.6's 262K context window — see CLAUDE.md §4 Risk register
+("Cap context at 32K initially, not full 262K").
 """
 
 from __future__ import annotations
@@ -20,6 +25,27 @@ from heretek.utils import (
 from heretek.memory import Memory
 
 log = logging.getLogger(__name__)
+
+
+# ---------------------------------------------------------------------------
+# Context-size cap (Plan 04: LLM-04)
+# ---------------------------------------------------------------------------
+
+_DEFAULT_MAX_CONTEXT_TOKENS = 32000
+
+
+def _max_context_tokens() -> int:
+    """Return the soft-cap on assembled message tokens.
+
+    Reads HERETEK_MAX_CONTEXT_TOKENS (default 32000). The cap is well below
+    Qwen 3.6's 262K window to leave RAM headroom on the M1 Max (see
+    CLAUDE.md §4 Risk register).
+    """
+    raw = os.environ.get("HERETEK_MAX_CONTEXT_TOKENS", str(_DEFAULT_MAX_CONTEXT_TOKENS))
+    try:
+        return int(raw)
+    except (TypeError, ValueError):
+        return _DEFAULT_MAX_CONTEXT_TOKENS
 
 
 def _build_user_content(task: Dict[str, Any]) -> Any:
@@ -385,7 +411,8 @@ def build_llm_messages(
     ]
 
     # --- Soft-cap token trimming ---
-    messages, cap_info = apply_message_token_soft_cap(messages, 200000)
+    # Plan 04: cap from HERETEK_MAX_CONTEXT_TOKENS (default 32000).
+    messages, cap_info = apply_message_token_soft_cap(messages, _max_context_tokens())
 
     return messages, cap_info
 
@@ -642,7 +669,8 @@ def compact_tool_history_llm(messages: list, keep_recent: int = 6) -> list:
 
     try:
         from heretek.llm import LLMClient
-        light_model = os.environ.get("OUROBOROS_MODEL_LIGHT") or "x-ai/grok-3-mini"
+        # Plan 04: light model for tool-history compaction comes from Ollama.
+        light_model = os.environ.get("OLLAMA_MODEL_LIGHT") or "qwen3:4b"
         client = LLMClient()
         resp_msg, _usage = client.chat(
             messages=[{"role": "user", "content": prompt}],

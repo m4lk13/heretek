@@ -63,10 +63,12 @@ class BackgroundConsciousness:
         self._next_wakeup_sec: float = 300.0
         self._observations: queue.Queue = queue.Queue()
 
-        # Budget tracking
+        # Budget tracking. Heretek runs on free local Ollama so this is a
+        # token-rate throttle, not a dollar throttle. Default 0 = no
+        # background quota cap (per CLAUDE.md §8 HERETEK_BG_BUDGET_PCT=0).
         self._bg_spent_usd: float = 0.0
         self._bg_budget_pct: float = float(
-            os.environ.get("OUROBOROS_BG_BUDGET_PCT", "10")
+            os.environ.get("HERETEK_BG_BUDGET_PCT", "0")
         )
 
     # -------------------------------------------------------------------
@@ -79,10 +81,10 @@ class BackgroundConsciousness:
 
     @property
     def _model(self) -> str:
-        # BG consciousness uses a cheap-but-capable model to minimize cost.
-        # Override via OUROBOROS_MODEL_LIGHT env var (Colab secret).
-        # Qwen3.5-Plus: $0.40/MTok prompt vs Gemini-3-Pro $2.0/MTok → 5x cheaper
-        return os.environ.get("OUROBOROS_MODEL_LIGHT", "") or "qwen/qwen3.5-plus-02-15"
+        # BG consciousness uses the small Ollama-served Qwen model so the
+        # 20GB primary doesn't have to stay hot just to ramble.
+        # Override via OLLAMA_MODEL_LIGHT env var (see CLAUDE.md §8).
+        return os.environ.get("OLLAMA_MODEL_LIGHT", "") or "qwen3:4b"
 
     def start(self) -> str:
         if self.is_running:
