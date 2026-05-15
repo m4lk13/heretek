@@ -12,20 +12,19 @@ A bot the owner enjoys talking to: persistent identity (running gags, callbacks,
 
 ### Validated
 
-(None yet — ship to validate)
+- [x] Bot runs entirely on local hardware via Ollama (zero ongoing LLM cost, no cloud dependency) — Validated in Phase 1: foundation-local-llm
+- [x] Primary model `qwen3.6:35b-a3b-q4_K_M` for chat, secondary `qwen3:4b` for background consciousness loop — Validated in Phase 1
+- [x] All upstream tools kept (file ops, shell, search) except: browser/Playwright removed, GitHub tool removed, multi-model review removed — Validated in Phase 1
+- [x] Bilingual reply by reflex: RU → RU, EN → EN, mixed → whichever amplifies the joke — Validated in Phase 1 (smoke test PASS for both languages via qwen3:4b)
 
 ### Active
 
-- [ ] Bot runs entirely on local hardware via Ollama (zero ongoing LLM cost, no cloud dependency)
 - [ ] Coherent chaos-heretic persona — Mechanicus-flavor mocked, bilingual RU/EN, holds grudges, refuses to be helpful in straight ways
 - [ ] Persistent identity across restarts (memory.py + identity.md continue working from upstream)
 - [ ] Self-modification on `playground` branch only, dry-run by default, `/sanction <hash>` approval to commit
 - [ ] Telegram private-group deployment — owner-only access, owner ID hardcoded (no first-sender footgun)
-- [ ] Primary model `qwen3.6:35b-a3b-q4_K_M` for chat, secondary `qwen3:4b` for background consciousness loop
-- [ ] All upstream tools kept (file ops, shell, search) except: browser/Playwright removed, GitHub tool removed, multi-model review removed
 - [ ] Branch protection: `git_ops.py` hard-refuses pushes to `main` or `last-known-good`
 - [ ] `/heresy` rollback command — revert to `last-known-good` tag
-- [ ] Bilingual reply by reflex: RU → RU, EN → EN, mixed → whichever amplifies the joke
 
 ### Out of Scope
 
@@ -70,5 +69,9 @@ A bot the owner enjoys talking to: persistent identity (running gags, callbacks,
 | Defer TG token + owner ID to Phase 4 | Phases 0-3 don't need them; grab right before launch. | — Pending |
 | Cap context to 32K initially | Avoid RAM blowup on 32GB host before profiling. Can raise later. | — Pending |
 
+## Current State
+
+Phase 1 (foundation-local-llm) complete: upstream Ouroboros v6.2.0 forked, package renamed `ouroboros/` → `heretek/`, cloud-LLM surface stripped, `heretek/llm.py` wired to local Ollama with JSONL token logger, budget API neutered. `python scripts/smoke_test.py` runs 4 PASS / 0 FAIL with bilingual RU+EN reply confirmed via `qwen3:4b`. Phase 2 (Persona + Identity) unblocked.
+
 ---
-*Last updated: 2026-05-14 after initialization*
+*Last updated: 2026-05-15 after Phase 1 completion*
