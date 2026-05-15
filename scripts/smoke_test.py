@@ -17,6 +17,15 @@ from __future__ import annotations
 
 import argparse
 import sys
+from pathlib import Path
+
+# When invoked as `python scripts/smoke_test.py`, sys.path[0] is the scripts/
+# directory, not the project root — so `import heretek` would fail with
+# ModuleNotFoundError. Prepend the project root explicitly so the harness
+# behaves the same regardless of cwd.
+_PROJECT_ROOT = Path(__file__).resolve().parent.parent
+if str(_PROJECT_ROOT) not in sys.path:
+    sys.path.insert(0, str(_PROJECT_ROOT))
 
 PASS = "[PASS]"
 FAIL = "[FAIL]"
@@ -26,12 +35,25 @@ SKIP = "[SKIP]"
 
 
 def test_package_rename() -> str:
-    """FORK-02 verification: import heretek succeeds; import heretek fails.
+    """FORK-02 verification: ``import heretek`` succeeds; ``import ouroboros`` fails.
 
-    Owned by Plan 02 (package rename). Currently SKIP.
+    Owned by Plan 02 (package rename). Flipped to a real check in 01-02.
     """
-    print(f"{SKIP} test_package_rename — not yet implemented (Plan 02 will flip this)")
-    return "skip"
+    try:
+        import heretek  # noqa: F401
+    except ImportError as e:
+        print(f"{FAIL} test_package_rename: `import heretek` raised: {e}")
+        return "fail"
+    try:
+        import ouroboros  # noqa: F401
+    except ImportError:
+        print(
+            f"{PASS} test_package_rename: import heretek OK; "
+            f"import ouroboros raises ModuleNotFoundError as expected"
+        )
+        return "pass"
+    print(f"{FAIL} test_package_rename: `import ouroboros` still succeeds — rename incomplete")
+    return "fail"
 
 
 def test_no_cloud_hosts() -> str:
