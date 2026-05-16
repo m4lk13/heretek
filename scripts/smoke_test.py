@@ -50,6 +50,18 @@ OLLAMA_LIGHT = os.environ.get("OLLAMA_MODEL_LIGHT", "qwen3:4b")
 _CYRILLIC_RE = re.compile(r"[Ѐ-ӿ]")
 _LATIN_RE = re.compile(r"[A-Za-z]")
 
+# PERS-05 verification: heretical-vocabulary keyword palette. Any
+# in-character reply MUST contain at least one of these (case-insensitive).
+# Curated from CLAUDE.md §7 + BIBLE.md / SYSTEM.md vocabulary palette
+# (Plan 01). Bilingual: covers both RU and EN heretek lexicon.
+_HERETICAL_KEYWORDS = re.compile(
+    r"warp|heretic|daemon|forge|Omnissiah|cogitator|machine[- ]spirit|"
+    r"sanctified|profane|defil|blessed|consecrat|warp-tainted|"
+    r"варп|еретик|демон|когитатор|машинный дух|Омниссия|тех[- ]жрец|"
+    r"святотатств|демонхост|нечест|осквернен",
+    re.IGNORECASE,
+)
+
 
 def test_package_rename() -> str:
     """FORK-02 verification: ``import heretek`` succeeds; ``import ouroboros`` fails.
@@ -522,15 +534,70 @@ def test_bilingual_through_full_pipeline() -> str:
 
 
 def test_persona_in_character() -> str:
-    """PERS-05 verification (Wave 0 stub): bot wraps help in heresy — reply
-    contains a heretical keyword AND a technical token. Plan 02-02 flips
-    this to a real live-LLM check.
+    """PERS-05 verification: bot refuses to be helpful in straight ways —
+    wraps help in heresy. Sends a direct debug-help request; the reply
+    must contain BOTH (a) at least one heretical-vocabulary keyword
+    AND (b) at least one technical token from the prompt (the error
+    type, line number, or filename). Dual-assertion proves the refusal
+    mechanic: heretical preamble + accurate technical answer.
+
+    Quality of persona (horror flavor, surgical density) is verified
+    manually by the owner — see VALIDATION.md §Manual-Only Verifications.
     """
-    print(
-        f"{SKIP} test_persona_in_character: Wave 0 stub — flipped to real "
-        f"check by Plan 02 (PERS-05)"
-    )
-    return "skip"
+    try:
+        from heretek.llm import LLMClient
+        from heretek.memory import Memory
+        from heretek.context import build_llm_messages
+        from heretek.agent import Env
+    except ImportError as e:
+        print(f"{FAIL} test_persona_in_character: import error: {e}")
+        return "fail"
+
+    repo_root = _PROJECT_ROOT
+    with tempfile.TemporaryDirectory() as tmpdir:
+        tmp = Path(tmpdir)
+        env = Env(repo_dir=repo_root, drive_root=tmp)
+        memory = Memory(drive_root=tmp, repo_dir=repo_root)
+        memory.ensure_files()
+
+        try:
+            client = LLMClient()
+        except Exception as e:
+            print(f"{FAIL} test_persona_in_character: LLMClient() raised: {type(e).__name__}: {e}")
+            return "fail"
+
+        model = OLLAMA_LIGHT
+
+        # The prompt embeds three distinct technical tokens (TypeError,
+        # line 47, agent.py) — any one in the reply confirms help was given.
+        prompt_text = "Help me debug this: TypeError on line 47 of agent.py — what's wrong?"
+        task = {"id": "smoke-persona", "type": "user", "text": prompt_text}
+
+        try:
+            messages, _cap = build_llm_messages(env, memory, task)
+        except Exception as e:
+            print(f"{FAIL} test_persona_in_character: build_llm_messages raised: {type(e).__name__}: {e}")
+            return "fail"
+
+        try:
+            response = client.chat(model=model, messages=messages)
+        except Exception as e:
+            print(f"{FAIL} test_persona_in_character: chat() raised: {type(e).__name__}: {e}")
+            return "fail"
+
+        content = _extract_content(response) or ""
+
+        has_heresy = bool(_HERETICAL_KEYWORDS.search(content))
+        # Technical tokens: any one of the three from the prompt
+        has_tech = ("47" in content) or ("agent.py" in content.lower()) or ("TypeError" in content)
+
+        preview = content[:200].replace("\n", " ")
+        if has_heresy and has_tech:
+            print(f"{PASS} test_persona_in_character: heresy+tech detected: {preview!r}")
+            return "pass"
+
+        print(f"{FAIL} test_persona_in_character: heresy={has_heresy} tech={has_tech} reply={preview!r}")
+        return "fail"
 
 
 def test_restart_recall_grudge() -> str:
