@@ -7,8 +7,8 @@ front doors:
 
 Phase 3 status:
   - cmd_heresy()    — FULLY IMPLEMENTED (Plan 03-02)
-  - cmd_evolve()    — STUB (Plan 03-03 ships dry-run pipeline)
-  - cmd_sanction()  — STUB (Plan 03-03 ships /sanction with import-test gate)
+  - cmd_evolve()    — FULLY IMPLEMENTED (Plan 03-03 — dry-run pipeline)
+  - cmd_sanction()  — FULLY IMPLEMENTED (Plan 03-03 — /sanction with import-test gate)
 
 The CLI shim's `--repo-dir <path>` flag is the seam smoke-test subtests use
 to point cmd_heresy at a hermetic temp repo (per scripts/smoke_test.py:
@@ -65,21 +65,116 @@ def _run_git(args: list, cwd: pathlib.Path, check: bool = True,
 
 
 # ---------------------------------------------------------------------------
-# /evolve — DRY-RUN PROPOSAL (stub in Plan 03-02, full impl in Plan 03-03)
+# /evolve — DRY-RUN PROPOSAL (full impl in Plan 03-03)
 # ---------------------------------------------------------------------------
 
 def cmd_evolve(test_diff_path: Optional[str] = None,
                repo_dir: Optional[pathlib.Path] = None) -> str:
-    """Propose a self-modification (dry-run; no commit). STUB — Plan 03-03.
+    """Propose a self-modification (dry-run — no commit until /sanction).
 
-    Plan 03-03 will:
-      1. Read HERETEK_EVOLVE_TEST_DIFF env var or test_diff_path argument
-      2. Create .heretek/staging/ + .heretek/dryruns/<id>.patch + sidecar JSON
-      3. Return the diff text + synthetic dry-run ID
+    Plan 03-03 implementation: fixture-injection path only. Production
+    LLM-loop path (real agent producing a diff) is Phase 4 territory.
+
+    Sequence:
+      1. Refuse if a pending dryrun already exists (one active proposal policy)
+      2. Clear .heretek/staging/ (Pitfall 4 — no stale staging) and recreate
+      3. Read patch source: HERETEK_EVOLVE_TEST_DIFF env var > test_diff_path arg
+         (if neither set, return error — Phase 3 cannot generate real LLM diffs)
+      4. Copy patch to .heretek/dryruns/<id>.patch where id = dr-<utc>-<8hex>
+      5. Write sidecar JSON .heretek/dryruns/<id>.json with sha256, status='pending', timestamp
+      6. Return success string with the dryrun ID + a preview of the diff
     """
+    import datetime
+    import hashlib
+    import json
+    import secrets
+    import shutil
+
+    repo = _resolve_repo_dir(repo_dir)
+    heretek_dir = repo / ".heretek"
+    staging_dir = heretek_dir / "staging"
+    dryruns_dir = heretek_dir / "dryruns"
+    archive_dir = dryruns_dir / "archive"
+
+    # 1. Refuse if a pending dryrun already exists (single-active-proposal policy)
+    if dryruns_dir.exists():
+        for sidecar in dryruns_dir.glob("*.json"):
+            try:
+                meta = json.loads(sidecar.read_text(encoding="utf-8"))
+                if meta.get("status") == "pending":
+                    pending_id = sidecar.stem
+                    return (
+                        f"⚠️ EVOLVE_REFUSED: proposal {pending_id!r} already pending. "
+                        f"Use /sanction {pending_id} to commit, or delete "
+                        f".heretek/dryruns/{pending_id}.* to discard."
+                    )
+            except (OSError, json.JSONDecodeError):
+                continue
+
+    # 2. Resolve patch source
+    env_diff = os.environ.get("HERETEK_EVOLVE_TEST_DIFF", "").strip()
+    source_path = test_diff_path or (env_diff if env_diff else None)
+    if not source_path:
+        return (
+            "⚠️ EVOLVE_REFUSED: no patch source provided. "
+            "Phase 3 supports fixture-injection only — set HERETEK_EVOLVE_TEST_DIFF "
+            "or pass --test-diff <path>. Production LLM-loop /evolve is Phase 4 territory."
+        )
+    source = pathlib.Path(source_path).resolve()
+    if not source.is_file():
+        return f"⚠️ EVOLVE_REFUSED: patch source not found: {source}"
+
+    # 3. Clear staging (Pitfall 4) and recreate; ensure dryruns + archive dirs exist
+    if staging_dir.exists():
+        try:
+            shutil.rmtree(staging_dir)
+        except OSError as e:
+            log.warning("cmd_evolve: failed to clear stale staging: %s", e)
+    heretek_dir.mkdir(parents=True, exist_ok=True)
+    staging_dir.mkdir(parents=True, exist_ok=True)
+    dryruns_dir.mkdir(parents=True, exist_ok=True)
+    archive_dir.mkdir(parents=True, exist_ok=True)
+
+    # 4. Generate synthetic ID and persist patch
+    ts = datetime.datetime.now(datetime.timezone.utc).strftime("%Y%m%dT%H%M%S")
+    dryrun_id = f"dr-{ts}-{secrets.token_hex(4)}"
+    patch_dest = dryruns_dir / f"{dryrun_id}.patch"
+    sidecar_dest = dryruns_dir / f"{dryrun_id}.json"
+
+    try:
+        patch_bytes = source.read_bytes()
+        patch_dest.write_bytes(patch_bytes)
+    except OSError as e:
+        return f"⚠️ EVOLVE_FAILED: could not copy patch to {patch_dest}: {e}"
+
+    # 5. Write sidecar with sha256 + metadata
+    sha256 = hashlib.sha256(patch_bytes).hexdigest()
+    meta = {
+        "id": dryrun_id,
+        "status": "pending",
+        "ts": datetime.datetime.now(datetime.timezone.utc).isoformat(),
+        "sha256": sha256,
+        "source": "test_diff" if (test_diff_path or env_diff) else "llm",
+        "source_path": str(source),
+        "repo_dir": str(repo),
+    }
+    sidecar_dest.write_text(json.dumps(meta, indent=2, ensure_ascii=False), encoding="utf-8")
+
+    # 6. Build response with a preview of the diff (first ~40 lines)
+    patch_text = patch_bytes.decode("utf-8", errors="replace")
+    all_lines = patch_text.splitlines()
+    preview_lines = all_lines[:40]
+    preview = "\n".join(preview_lines)
+    if len(all_lines) > 40:
+        preview += "\n... (truncated; full patch at .heretek/dryruns/" + dryrun_id + ".patch)"
+
     return (
-        "⚠️ NOT_IMPLEMENTED: cmd_evolve() lands in Plan 03-03 (dry-run pipeline). "
-        "Phase 3 wave 2 only ships cmd_heresy() and the CLI shim."
+        f"🜏 /evolve dry-run proposed: id={dryrun_id}\n"
+        f"sha256={sha256[:16]}...\n"
+        f"--- diff preview ---\n"
+        f"{preview}\n"
+        f"--- end preview ---\n"
+        f"Sanction with: /sanction {dryrun_id}"
     )
 
 
