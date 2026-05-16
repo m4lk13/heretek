@@ -21,10 +21,14 @@ A bot the owner enjoys talking to: persistent identity (running gags, callbacks,
 
 ### Active
 
-- [ ] Self-modification on `playground` branch only, dry-run by default, `/sanction <hash>` approval to commit
 - [ ] Telegram private-group deployment — owner-only access, owner ID hardcoded (no first-sender footgun)
-- [ ] Branch protection: `git_ops.py` hard-refuses pushes to `main` or `last-known-good`
-- [ ] `/heresy` rollback command — revert to `last-known-good` tag
+
+### Validated (Phase 3)
+
+- [x] Self-modification on `playground` branch only, dry-run by default, `/sanction <hash>` approval to commit — Validated in Phase 3: self-modify-guardrails (SAFE-02/03/04 live PASS)
+- [x] Branch protection: `safe_push()` chokepoint hard-refuses pushes to `main` or `last-known-good` before any subprocess call — Validated in Phase 3 (SAFE-01)
+- [x] `/heresy` rollback command — checks out playground + resets hard to `last-known-good^{commit}` — Validated in Phase 3 (SAFE-05)
+- [x] `/sanction` advances the annotated `last-known-good` tag after the import-test gate passes — Validated in Phase 3 (SAFE-06)
 
 ### Out of Scope
 
@@ -71,7 +75,7 @@ A bot the owner enjoys talking to: persistent identity (running gags, callbacks,
 
 ## Current State
 
-Phase 2 (persona-identity) complete: `BIBLE.md` and `prompts/SYSTEM.md` rewritten in place as the chaos-heretek persona (forbidden territories above keep-and-corrupted Принцип 0/1/2; bilingual RU+EN mix; inherited drift-detector → heresy-detector pattern). `heretek/memory.py:_default_identity()` ships a 5-section identity scaffold. `heretek/context.py` 8h-stale warning retuned for chaos-heretek voice. `memory/` gitignored. `python scripts/smoke_test.py` runs **9 PASS / 0 FAIL**: bilingual reflex through full prompt-assembly path, refusal-in-character (heretical preamble + accurate answer), and seeded-grudge restart-recall all verified live via `qwen3:4b`. Manual persona-vibe sign-off on the 24GB primary model is the only remaining Phase 2 gate before Phase 3 (Self-Modify Guardrails).
+Phase 3 (self-modify-guardrails) complete: `supervisor/git_ops.py` ships `safe_push()` as the single git-write chokepoint — raises `ProtectedBranchError` before any subprocess call when target is `main` or `last-known-good` (hardcoded floor, env-expandable). All three push sites (`tools/git.py`, `agent.py`, `events.py`) route through it. `supervisor/commands.py` wires `cmd_heresy()` (checkout playground + reset hard to `last-known-good^{commit}`), `cmd_evolve()` (writes `.heretek/dryruns/<id>.patch` + SHA256 sidecar with zero git calls), and `cmd_sanction()` (SHA256 tamper check → apply → commit → import-test gate → annotated tag advance, with `reset --hard HEAD~1` rollback on test failure). `supervisor/telegram.py` exposes `handle_slash_command()` dispatch hook ready for Phase 4. `python scripts/smoke_test.py --static-only` runs **11 PASS / 0 FAIL / 0 SKIP** with all 6 SAFE-* requirements live-tested via hermetic temp-repo fixtures. Next: Phase 4 (launch-+-first-evolution) — wire the dispatch hook to the live TG polling loop, hardcode owner ID, run the first real `/evolve` → diff → `/sanction` loop in a private group.
 
 ---
-*Last updated: 2026-05-16 after Phase 2 completion*
+*Last updated: 2026-05-16 after Phase 3 completion*
