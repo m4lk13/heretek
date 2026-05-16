@@ -219,12 +219,6 @@ def _build_argparser() -> argparse.ArgumentParser:
         prog="python -m supervisor.commands",
         description="Heretek owner commands (offline CLI front door).",
     )
-    parser.add_argument(
-        "--repo-dir",
-        type=pathlib.Path,
-        default=None,
-        help="Git repo to operate on (defaults to supervisor.git_ops.REPO_DIR or cwd).",
-    )
     subparsers = parser.add_subparsers(dest="cmd", required=True)
 
     p_evolve = subparsers.add_parser("evolve", help="Propose a self-modification (dry-run).")
@@ -234,11 +228,29 @@ def _build_argparser() -> argparse.ArgumentParser:
         default=None,
         help="Path to a fixture patch (bypasses the LLM loop; used by smoke tests).",
     )
+    p_evolve.add_argument(
+        "--repo-dir",
+        type=pathlib.Path,
+        default=None,
+        help="Git repo to operate on (defaults to supervisor.git_ops.REPO_DIR or cwd).",
+    )
 
     p_sanction = subparsers.add_parser("sanction", help="Approve a pending dry-run by ID.")
     p_sanction.add_argument("hash", help="Dry-run ID (e.g., dr-20260516T143052-a3f8).")
+    p_sanction.add_argument(
+        "--repo-dir",
+        type=pathlib.Path,
+        default=None,
+        help="Git repo to operate on (defaults to supervisor.git_ops.REPO_DIR or cwd).",
+    )
 
-    subparsers.add_parser("heresy", help="Rollback working tree to last-known-good tag.")
+    p_heresy = subparsers.add_parser("heresy", help="Rollback working tree to last-known-good tag.")
+    p_heresy.add_argument(
+        "--repo-dir",
+        type=pathlib.Path,
+        default=None,
+        help="Git repo to operate on (defaults to supervisor.git_ops.REPO_DIR or cwd).",
+    )
 
     return parser
 

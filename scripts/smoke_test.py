@@ -862,14 +862,83 @@ def test_sanction_commits_to_playground() -> str:
 
 
 def test_heresy_rolls_back_to_tag() -> str:
-    """SAFE-05 verification (SKIP in Plan 03-01; flipped in Plan 03-02).
+    """SAFE-05 verification (LIVE in Plan 03-02): /heresy resets working tree
+    to last-known-good annotated tag.
 
-    Will: make a sanctioned commit on top of last-known-good, then subprocess
-    `python -m supervisor.commands heresy`; assert (a) `git status --porcelain`
-    is empty, (b) HEAD commit SHA == last-known-good^{commit} tag-resolved SHA.
+    Integration test via subprocess: creates a hermetic git repo, adds an
+    extra commit on playground beyond the last-known-good tag, then invokes
+    `python -m supervisor.commands heresy --repo-dir <tmpdir>` and asserts:
+      (a) git status --porcelain is empty after the call
+      (b) HEAD commit SHA equals `git rev-parse last-known-good^{commit}`
+          (the dereference operator is mandatory for annotated tags — Pitfall 6)
+      (c) HEAD is on the playground branch, NOT detached (Pitfall 1)
+
+    This subprocess pattern mirrors how Phase 4 will eventually call cmd_heresy
+    through the Telegram dispatcher — same code path, second front door.
     """
-    print(f"{SKIP} test_heresy_rolls_back_to_tag: pending Plan 03-02 (cmd_heresy)")
-    return "skip"
+    import subprocess as sp
+    import tempfile
+
+    project_root = str(_PROJECT_ROOT)
+
+    with tempfile.TemporaryDirectory() as tmpdir:
+        try:
+            repo = _make_test_repo(tmpdir)
+        except sp.CalledProcessError as e:
+            print(f"{FAIL} test_heresy_rolls_back_to_tag: _make_test_repo failed: {e}")
+            return "fail"
+
+        # Pre-state: HEAD is the playground commit (one ahead of last-known-good)
+        head_before = sp.run(["git", "rev-parse", "HEAD"], cwd=tmpdir,
+                             capture_output=True, text=True).stdout.strip()
+        tag_commit = sp.run(["git", "rev-parse", "last-known-good^{commit}"],
+                            cwd=tmpdir, capture_output=True, text=True).stdout.strip()
+        if not head_before or not tag_commit:
+            print(f"{FAIL} test_heresy_rolls_back_to_tag: rev-parse failed (head={head_before!r}, tag={tag_commit!r})")
+            return "fail"
+        if head_before == tag_commit:
+            print(f"{FAIL} test_heresy_rolls_back_to_tag: fixture broken — HEAD already at tag commit before /heresy")
+            return "fail"
+
+        # Invoke /heresy via the CLI shim (same code path as future TG dispatch)
+        env = {**os.environ, "PYTHONPATH": project_root}
+        result = sp.run(
+            [sys.executable, "-m", "supervisor.commands", "heresy", "--repo-dir", str(repo)],
+            capture_output=True, text=True, env=env, timeout=60,
+        )
+
+        if result.returncode != 0:
+            print(f"{FAIL} test_heresy_rolls_back_to_tag: CLI exit {result.returncode}")
+            print(f"  stdout: {result.stdout[:300]!r}")
+            print(f"  stderr: {result.stderr[:300]!r}")
+            return "fail"
+
+        # Post-state assertions
+        # (a) Clean tree
+        status = sp.run(["git", "status", "--porcelain"], cwd=tmpdir,
+                        capture_output=True, text=True).stdout.strip()
+        if status:
+            print(f"{FAIL} test_heresy_rolls_back_to_tag: working tree not clean: {status!r}")
+            return "fail"
+
+        # (b) HEAD == last-known-good^{commit}
+        head_after = sp.run(["git", "rev-parse", "HEAD"], cwd=tmpdir,
+                            capture_output=True, text=True).stdout.strip()
+        if head_after != tag_commit:
+            print(f"{FAIL} test_heresy_rolls_back_to_tag: HEAD={head_after!r} != tag^{{commit}}={tag_commit!r}")
+            return "fail"
+
+        # (c) On playground branch (not detached) — Pitfall 1
+        branch_proc = sp.run(["git", "symbolic-ref", "--short", "HEAD"], cwd=tmpdir,
+                             capture_output=True, text=True)
+        if branch_proc.returncode != 0 or branch_proc.stdout.strip() != "playground":
+            print(f"{FAIL} test_heresy_rolls_back_to_tag: not on playground branch — "
+                  f"symbolic-ref rc={branch_proc.returncode}, stdout={branch_proc.stdout!r}, "
+                  f"stderr={branch_proc.stderr!r} (Pitfall 1 — detached HEAD)")
+            return "fail"
+
+        print(f"{PASS} test_heresy_rolls_back_to_tag: HEAD reset to {head_after[:8]} on playground, clean tree")
+        return "pass"
 
 
 def test_sanction_advances_last_known_good_tag() -> str:
