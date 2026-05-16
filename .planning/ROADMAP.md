@@ -61,7 +61,10 @@ Decimal phases appear between their surrounding integers in numeric order.
   4. `/sanction <hash>` (invoked with a valid dry-run hash) creates the commit on `playground` and the commit appears in `git log playground`
   5. `/heresy` reverts working tree to the `last-known-good` tag; `git status` shows clean tree at that tag afterward
   6. Daily (or per-session) auto-tag updates `last-known-good` to current `playground` HEAD
-**Plans**: TBD
+**Plans**: 3 plans
+- [ ] 03-01-PLAN.md — Ship safe_push() chokepoint + ProtectedBranchError + PROTECTED_BRANCHES; rename branch defaults across git_ops.py/workers.py/agent.py (Phase 1 deferred carry); refactor 3 push sites; gitignore .heretek/; Wave 0 smoke scaffold (6 SAFE SKIP-stubs + _make_test_repo helper); flip 2 SAFE-01 stubs to live PASS
+- [ ] 03-02-PLAN.md — Create supervisor/commands.py (cmd_evolve/cmd_sanction stubs + cmd_heresy fully implemented); argparse CLI shim with --repo-dir; handle_slash_command stub in telegram.py; flip test_heresy_rolls_back_to_tag (SAFE-05) to live PASS
+- [ ] 03-03-PLAN.md — Implement cmd_evolve (dry-run pipeline with HERETEK_EVOLVE_TEST_DIFF fixture seam) and cmd_sanction (with import-test-gate BEFORE tag advance — Risk 2 mitigation); ship scripts/fixtures/heresy_test.patch; flip 3 SAFE SKIP-stubs (SAFE-02, SAFE-03, SAFE-04, SAFE-06) to live PASS — Phase 3 phase-gate GREEN at 11 pass / 0 fail / 0 skip
 
 ### Phase 4: Launch + First Evolution
 **Goal**: The bot is live in a private Telegram group, responds in-character to the owner, and has completed one witnessed end-to-end evolution cycle

@@ -37,20 +37,25 @@ created: 2026-05-16
 ## Per-Task Verification Map
 
 > Populated by gsd-planner from RESEARCH.md §"Validation Architecture" mapping. Each new subtest maps 1:1 to a SAFE-* requirement.
+>
+> **Note on commands:** `scripts/smoke_test.py` does NOT support a `--subtest <name>` flag (only `--static-only` exists, verified in RESEARCH.md). Per-subtest invocation is done either via direct function call (`python -c "from scripts import smoke_test; smoke_test.<fn>()"`) or by running the full suite which prints each subtest's PASS/SKIP/FAIL line. The fast-feedback gate is `--static-only` (≈3s); the full gate is the bare command (≈30-60s). Each task's own `<verify><automated>` block runs the targeted assertion inline; the per-task row below is the suite-level confirmation command.
 
 | Task ID | Plan | Wave | Requirement | Test Type | Automated Command | File Exists | Status |
 |---------|------|------|-------------|-----------|-------------------|-------------|--------|
-| 03-XX-XX | XX | X | SAFE-01 | unit | `python scripts/smoke_test.py --subtest test_safe_push_refuses_main` | ❌ W0 | ⬜ pending |
-| 03-XX-XX | XX | X | SAFE-01 | unit | `python scripts/smoke_test.py --subtest test_safe_push_refuses_last_known_good` | ❌ W0 | ⬜ pending |
-| 03-XX-XX | XX | X | SAFE-02 | integration | `python scripts/smoke_test.py --subtest test_evolve_writes_dryrun_not_commit` | ❌ W0 | ⬜ pending |
-| 03-XX-XX | XX | X | SAFE-03 | integration | `python scripts/smoke_test.py --subtest test_evolve_writes_dryrun_not_commit` | ❌ W0 | ⬜ pending |
-| 03-XX-XX | XX | X | SAFE-04 | integration | `python scripts/smoke_test.py --subtest test_sanction_commits_to_playground` | ❌ W0 | ⬜ pending |
-| 03-XX-XX | XX | X | SAFE-05 | integration | `python scripts/smoke_test.py --subtest test_heresy_rolls_back_to_tag` | ❌ W0 | ⬜ pending |
-| 03-XX-XX | XX | X | SAFE-06 | integration | `python scripts/smoke_test.py --subtest test_sanction_advances_last_known_good_tag` | ❌ W0 | ⬜ pending |
+| 03-XX-XX | XX | X | SAFE-01 | unit | `python scripts/smoke_test.py --static-only && python scripts/smoke_test.py` | ❌ W0 | ⬜ pending |
+| 03-XX-XX | XX | X | SAFE-01 | unit | `python scripts/smoke_test.py --static-only && python scripts/smoke_test.py` | ❌ W0 | ⬜ pending |
+| 03-XX-XX | XX | X | SAFE-02 | integration | `python scripts/smoke_test.py --static-only && python scripts/smoke_test.py` | ❌ W0 | ⬜ pending |
+| 03-XX-XX | XX | X | SAFE-03 | integration | `python scripts/smoke_test.py --static-only && python scripts/smoke_test.py` | ❌ W0 | ⬜ pending |
+| 03-XX-XX | XX | X | SAFE-04 | integration | `python scripts/smoke_test.py --static-only && python scripts/smoke_test.py` | ❌ W0 | ⬜ pending |
+| 03-XX-XX | XX | X | SAFE-05 | integration | `python scripts/smoke_test.py --static-only && python scripts/smoke_test.py` | ❌ W0 | ⬜ pending |
+| 03-XX-XX | XX | X | SAFE-06 | integration | `python scripts/smoke_test.py --static-only && python scripts/smoke_test.py` | ❌ W0 | ⬜ pending |
 
 *Status: ⬜ pending · ✅ green · ❌ red · ⚠️ flaky*
 
 *Task IDs populated by planner. Plan/Wave columns populated by planner based on decomposition.*
+
+*To inspect a single subtest's output during development (not a suite command):*
+`python -c "import sys; sys.path.insert(0,'.'); from scripts import smoke_test; print(smoke_test.test_heresy_rolls_back_to_tag())"`
 
 ---
 
