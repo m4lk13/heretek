@@ -475,3 +475,44 @@ def send_with_budget(chat_id: int, text: str, log_text: Optional[str] = None,
                 },
             )
             break
+
+
+# ---------------------------------------------------------------------------
+# Phase 3: Slash-command dispatch seam (Phase 4 polling loop will call this)
+# ---------------------------------------------------------------------------
+
+import re as _re  # local re alias; module already imports re at module scope
+
+
+def handle_slash_command(text: str, chat_id: int, user_id: int) -> Optional[str]:
+    """Route owner slash-commands to supervisor/commands.py handlers.
+
+    Phase 3 status: this function EXISTS but is NOT YET CALLED — Phase 4 will
+    wire it into the Telegram polling loop (which itself does not exist yet;
+    see supervisor/__main__.py:90-103). The function is here so:
+      1. The dispatch surface is reviewable independently of Phase 4 polling
+      2. Phase 4 has a concrete callable to hook in (no design ambiguity)
+      3. The CLI shim (python -m supervisor.commands) is the SAME code path,
+         so offline tests cover the dispatch logic transitively
+
+    Args:
+        text: raw message text from Telegram update (e.g., "/sanction dr-abc")
+        chat_id: chat ID the message arrived in (Phase 4 owner-filter checks happen UPSTREAM)
+        user_id: Telegram user ID of the sender (Phase 4 owner-filter check is upstream)
+
+    Returns:
+        Response string to send back to the chat, or None if the text was not
+        a recognized slash-command.
+    """
+    # Local import to avoid hard module-load coupling with supervisor.commands
+    from supervisor.commands import cmd_evolve, cmd_sanction, cmd_heresy
+
+    text = (text or "").strip()
+    if text == "/evolve":
+        return cmd_evolve()
+    m = _re.match(r"^/sanction\s+(\S+)$", text)
+    if m:
+        return cmd_sanction(m.group(1))
+    if text == "/heresy":
+        return cmd_heresy()
+    return None
