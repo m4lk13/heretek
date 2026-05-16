@@ -14,7 +14,7 @@ Decimal phases appear between their surrounding integers in numeric order.
 
 - [x] **Phase 1: Foundation + Local LLM** - Fork, rename, strip, and wire local Ollama inference; smoke-test bilingual output
 - [x] **Phase 2: Persona + Identity** - Author CODEX_HERETICUS.md and SYSTEM.md; prove the bot has a voice and persistent identity (manual persona-quality sign-off pending)
-- [ ] **Phase 3: Self-Modify Guardrails** - Branch protection, dry-run gate, /sanction and /heresy commands wired and tested offline
+- [x] **Phase 3: Self-Modify Guardrails** - Branch protection, dry-run gate, /sanction and /heresy commands wired and tested offline (completed 2026-05-16)
 - [ ] **Phase 4: Launch + First Evolution** - Deploy to private Telegram group; complete one full /evolve → diff → /sanction → playground-commit loop
 
 ## Phase Details
@@ -87,5 +87,5 @@ Phases execute in numeric order: 1 → 2 → 3 → 4
 |-------|----------------|--------|-----------|
 | 1. Foundation + Local LLM | 5/5 | Complete | 2026-05-15 |
 | 2. Persona + Identity | 2/2 | Complete | 2026-05-16 |
-| 3. Self-Modify Guardrails | 2/3 | In Progress|  |
+| 3. Self-Modify Guardrails | 3/3 | Complete   | 2026-05-16 |
 | 4. Launch + First Evolution | 0/? | Not started | - |

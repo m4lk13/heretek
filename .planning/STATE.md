@@ -3,13 +3,13 @@ gsd_state_version: 1.0
 milestone: v6.2
 milestone_name: milestone
 status: unknown
-stopped_at: Completed 03-02-PLAN.md
-last_updated: "2026-05-16T17:13:37Z"
+stopped_at: Completed 03-03-PLAN.md
+last_updated: "2026-05-16T17:24:15.095Z"
 progress:
   total_phases: 4
-  completed_phases: 2
+  completed_phases: 3
   total_plans: 10
-  completed_plans: 9
+  completed_plans: 10
 ---
 
 # Project State
@@ -57,6 +57,7 @@ Plan: 3 of 3
 | Phase 02-persona-identity P02 | 76 min | 3 tasks | 2 files |
 | Phase 03-self-modify-guardrails P01 | 4 min | 4 tasks | 9 files |
 | Phase 03-self-modify-guardrails P02 | 3 min | 3 tasks | 3 files |
+| Phase 03-self-modify-guardrails P03 | 5min | 4 tasks | 3 files |
 
 ## Accumulated Context
 
@@ -106,6 +107,9 @@ Recent decisions affecting current work:
 - [Phase 03-self-modify-guardrails]: Plan 03-02: _create_rescue_snapshot() signature is (branch, reason, repo_state: Dict) not keyword-only; cmd_heresy() calls _collect_repo_sync_state() first then passes the result; rescue still best-effort in try/except
 - [Phase 03-self-modify-guardrails]: Plan 03-02: handle_slash_command() uses lazy local import of supervisor.commands inside function body — decouples telegram.py module-load order from new commands.py module (same Pitfall 3 mitigation pattern as Plan 03-01)
 - [Phase 03-self-modify-guardrails]: Plan 03-02: Dual-front-door pattern proven — same handler function callable via argparse CLI and future TG dispatch; Plan 03-03 follows this pattern for cmd_evolve and cmd_sanction
+- [Phase 03-self-modify-guardrails]: _run_import_test() standalone helper (not git_ops.import_test()) — uses real project root PYTHONPATH so hermetic test repos (no heretek package) don't cause false failures
+- [Phase 03-self-modify-guardrails]: Import-test gate structurally BEFORE tag advance in cmd_sanction() — Risk 2 + Pitfall 8; broken commit cannot become the /heresy rollback target
+- [Phase 03-self-modify-guardrails]: cmd_evolve() has zero git subprocess calls — 'no live-tree changes until /sanction' enforced by absence, not assertion
 
 ### Pending Todos
 
@@ -120,7 +124,7 @@ None yet.
 
 ## Session Continuity
 
-Last session: 2026-05-16T17:13:37Z
-Stopped at: Completed 03-02-PLAN.md
-Resume file: .planning/phases/03-self-modify-guardrails/03-02-SUMMARY.md
+Last session: 2026-05-16T17:24:15.092Z
+Stopped at: Completed 03-03-PLAN.md
+Resume file: None
 Recommended next: Execute 03-03-PLAN.md (/evolve dry-run pipeline + /sanction with import-test gate + tag advance).

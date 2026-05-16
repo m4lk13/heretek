@@ -35,10 +35,10 @@
 
 - [x] **SAFE-01**: `supervisor/git_ops.py` hard-refuses all push/commit operations targeting `main` or `last-known-good` branches
 - [x] **SAFE-02**: All bot self-modifications route to `playground` branch by default
-- [ ] **SAFE-03**: `/evolve` command defaults to dry-run mode — bot posts proposed diff to Telegram instead of committing
-- [ ] **SAFE-04**: `/sanction <commit-hash>` Telegram command approves a pending dry-run proposal and commits it to `playground`
+- [x] **SAFE-03**: `/evolve` command defaults to dry-run mode — bot posts proposed diff to Telegram instead of committing
+- [x] **SAFE-04**: `/sanction <commit-hash>` Telegram command approves a pending dry-run proposal and commits it to `playground`
 - [x] **SAFE-05**: `/heresy` Telegram command rolls the working tree back to the `last-known-good` tag
-- [ ] **SAFE-06**: Daily (or per-session) auto-tag of `last-known-good` at current `playground` HEAD so rollback target stays fresh
+- [x] **SAFE-06**: Daily (or per-session) auto-tag of `last-known-good` at current `playground` HEAD so rollback target stays fresh
 
 ### Launch (LAUNCH)
 
@@ -101,10 +101,10 @@ Populated by roadmapper. Each requirement maps to exactly one phase.
 | PERS-06 | Phase 2 | Complete |
 | SAFE-01 | Phase 3 | Complete |
 | SAFE-02 | Phase 3 | Complete |
-| SAFE-03 | Phase 3 | Pending |
-| SAFE-04 | Phase 3 | Pending |
+| SAFE-03 | Phase 3 | Complete |
+| SAFE-04 | Phase 3 | Complete |
 | SAFE-05 | Phase 3 | Complete |
-| SAFE-06 | Phase 3 | Pending |
+| SAFE-06 | Phase 3 | Complete |
 | LAUNCH-01 | Phase 4 | Pending |
 | LAUNCH-02 | Phase 4 | Pending |
 | LAUNCH-03 | Phase 4 | Pending |
