@@ -24,9 +24,9 @@
 
 ### Persona (PERS)
 
-- [ ] **PERS-01**: Write `CODEX_HERETICUS.md` — full persona constitution with non-negotiable forbidden territories at the top (no real-person targeting outside owner-bit, no slurs, no minors in any framing, no harm-instructions wrapped in heresy, no real violence/doxxing)
-- [ ] **PERS-02**: Write `SYSTEM.md` — system prompt that pulls from CODEX_HERETICUS.md and adds bilingual reflex instruction
-- [ ] **PERS-03**: Write initial `identity.md` (empty/seed file; bot fills it over time via memory.py)
+- [x] **PERS-01**: Write `CODEX_HERETICUS.md` — full persona constitution with non-negotiable forbidden territories at the top (no real-person targeting outside owner-bit, no slurs, no minors in any framing, no harm-instructions wrapped in heresy, no real violence/doxxing)
+- [x] **PERS-02**: Write `SYSTEM.md` — system prompt that pulls from CODEX_HERETICUS.md and adds bilingual reflex instruction
+- [x] **PERS-03**: Write initial `identity.md` (empty/seed file; bot fills it over time via memory.py)
 - [ ] **PERS-04**: Bot replies in Russian when addressed in Russian, English when addressed in English, picks the joke-amplifying language when mixed
 - [ ] **PERS-05**: Persona stays in character — bot refuses to be helpful in straight ways; wraps help in heresy
 - [ ] **PERS-06**: Persistent identity survives restarts — running gags, grudges, callbacks reload from memory store
@@ -93,9 +93,9 @@ Populated by roadmapper. Each requirement maps to exactly one phase.
 | LLM-04 | Phase 1 | Complete |
 | LLM-05 | Phase 1 | Complete |
 | LLM-06 | Phase 1 | Complete |
-| PERS-01 | Phase 2 | Pending |
-| PERS-02 | Phase 2 | Pending |
-| PERS-03 | Phase 2 | Pending |
+| PERS-01 | Phase 2 | Complete |
+| PERS-02 | Phase 2 | Complete |
+| PERS-03 | Phase 2 | Complete |
 | PERS-04 | Phase 2 | Pending |
 | PERS-05 | Phase 2 | Pending |
 | PERS-06 | Phase 2 | Pending |

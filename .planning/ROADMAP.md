@@ -47,7 +47,7 @@ Decimal phases appear between their surrounding integers in numeric order.
   4. Bot replies in Russian when addressed in Russian, English when addressed in English — bilingual reflex is live
   5. After `kill` and restart, the bot recalls a fact established in the previous session (running gag or grudge surfaces from memory store)
 **Plans**: 2 plans
-- [ ] 02-01-PLAN.md — Rewrite BIBLE.md + prompts/SYSTEM.md as chaos-heretek persona; rewrite _default_identity scaffold; retune 8h-stale warning; gitignore memory/; Wave 0 smoke-test scaffold (3 static PASS + 3 SKIP stubs)
+- [x] 02-01-PLAN.md — Rewrite BIBLE.md + prompts/SYSTEM.md as chaos-heretek persona; rewrite _default_identity scaffold; retune 8h-stale warning; gitignore memory/; Wave 0 smoke-test scaffold (3 static PASS + 3 SKIP stubs)
 - [ ] 02-02-PLAN.md — Flip 3 SKIP stubs to real assertions via build_llm_messages + LLMClient.chat: test_bilingual_through_full_pipeline (PERS-04), test_persona_in_character (PERS-05), test_restart_recall_grudge (PERS-06)
 
 ### Phase 3: Self-Modify Guardrails

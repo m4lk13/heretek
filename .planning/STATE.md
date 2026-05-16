@@ -2,16 +2,14 @@
 gsd_state_version: 1.0
 milestone: v6.2
 milestone_name: milestone
-status: "Phase 1 shipped (foundation + local LLM); awaiting `/gsd:plan-phase 2`"
-stopped_at: Phase 2 context gathered
-last_updated: "2026-05-16T07:50:25.084Z"
-last_activity: 2026-05-15 — Phase 1 shipped (5/5 plans complete)
+status: unknown
+stopped_at: Completed 02-01-PLAN.md (persona surface rewrite)
+last_updated: "2026-05-16T08:36:14.809Z"
 progress:
   total_phases: 4
   completed_phases: 1
-  total_plans: 5
-  completed_plans: 5
-  percent: 25
+  total_plans: 7
+  completed_plans: 6
 ---
 
 # Project State
@@ -21,16 +19,12 @@ progress:
 See: .planning/PROJECT.md (updated 2026-05-14)
 
 **Core value:** A bot the owner enjoys talking to — persistent identity, bilingual RU/EN by reflex, free local inference, self-modification gated by an approval workflow
-**Current focus:** Phase 01 — foundation-local-llm
+**Current focus:** Phase 02 — persona-identity
 
 ## Current Position
 
-Phase: 2 of 4 (Persona + Identity) — READY TO PLAN
-Plan: 0 of ? in current phase
-Status: Phase 1 shipped (foundation + local LLM); awaiting `/gsd:plan-phase 2`
-Last activity: 2026-05-15 — Phase 1 shipped (5/5 plans complete)
-
-Progress: [██░░░░░░░░] 25%
+Phase: 02 (persona-identity) — EXECUTING
+Plan: 2 of 2
 
 ## Performance Metrics
 
@@ -58,6 +52,7 @@ Progress: [██░░░░░░░░] 25%
 | Phase 01-foundation-local-llm P03 | 9 min | 4 tasks | 15 files |
 | Phase 01-foundation-local-llm P04 | 7 min | 3 tasks | 5 files |
 | Phase 01-foundation-local-llm P05 | 15 min | 3 tasks | 4 files |
+| Phase 02-persona-identity P01 | 8 min | 3 tasks | 7 files |
 
 ## Accumulated Context
 
@@ -90,6 +85,9 @@ Recent decisions affecting current work:
 - [Phase 01-foundation-local-llm]: Plan 05 — LLMClient uses `httpx.Client(trust_env=False)` to bypass macOS system-wide HTTP proxies (scutil --proxy). Python's urllib.request.getproxies() does NOT honor the macOS exception list, so a localhost-scoped proxy still gets applied to `127.0.0.1:11434` and fails with "Server disconnected without sending a response." OLLAMA_BASE_URL is local by design — bypassing env-discovered proxies is correct.
 - [Phase 01-foundation-local-llm]: Plan 05 — Smoke test bilingual subtest uses `OLLAMA_MODEL` (primary by default); on low-RAM hosts the 24GB primary can OOM Ollama mid-load. Smoke test prints an actionable hint suggesting `OLLAMA_MODEL=qwen3:4b` override. Verified GREEN: 4 PASS with light-model override; FAIL-with-hint when default 24GB model OOMs.
 - [Phase 01-foundation-local-llm]: Plan 05 — CLAUDE.md model size 20GB→24GB correction across §0/§2/§3/§4/§5; §6 Current state flipped from "Pre-Phase 0" to a Phase-1-complete summary with resume protocol pointing at `scripts/smoke_test.py --static-only` as the fast-feedback gate.
+- [Phase 02-persona-identity]: Plan 02-01: STALE IDENTITY threshold preserved at age_hours > 8 (RESEARCH Open Q1 explicit resolution — CONTEXT.md said '4h' loosely; actual upstream code is 8h; only warning STRING retuned for chaos-heretek voice, logic untouched)
+- [Phase 02-persona-identity]: Plan 02-01: Forbidden upstream-name strings ('Ouroboros' / 'Уроборос') strictly purged from BIBLE.md and prompts/SYSTEM.md — even fork-from labels and inheritance prose. Rewrote to 'upstream forge-world constitution' / 'my upstream ancestor' framing to preserve the inheritance-and-corruption narrative
+- [Phase 02-persona-identity]: Plan 02-01: SYSTEM.md landed at 20472 bytes (below soft band lower bound 22KB) — warn-only; natural consequence of dropping cloud-era scaffolding (Google Colab paths, OpenRouter env vars, multi-model review, knowledge base, tech-radar) that does not apply to local-laptop Heretek scope. Self-concept proxy floor (>10KB) satisfied; combined 40814 within combined warn band 38000-75000
 
 ### Pending Todos
 
@@ -103,7 +101,7 @@ None yet.
 
 ## Session Continuity
 
-Last session: 2026-05-16T07:50:25.081Z
-Stopped at: Phase 2 context gathered
-Resume file: .planning/phases/02-persona-identity/02-CONTEXT.md
+Last session: 2026-05-16T08:36:14.807Z
+Stopped at: Completed 02-01-PLAN.md (persona surface rewrite)
+Resume file: None
 Recommended next: `git push -u origin playground` to publish stripped/renamed Heretek to GitHub (first public visibility), then plan Phase 2.
