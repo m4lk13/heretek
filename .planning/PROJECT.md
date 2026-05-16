@@ -15,12 +15,12 @@ A bot the owner enjoys talking to: persistent identity (running gags, callbacks,
 - [x] Bot runs entirely on local hardware via Ollama (zero ongoing LLM cost, no cloud dependency) — Validated in Phase 1: foundation-local-llm
 - [x] Primary model `qwen3.6:35b-a3b-q4_K_M` for chat, secondary `qwen3:4b` for background consciousness loop — Validated in Phase 1
 - [x] All upstream tools kept (file ops, shell, search) except: browser/Playwright removed, GitHub tool removed, multi-model review removed — Validated in Phase 1
-- [x] Bilingual reply by reflex: RU → RU, EN → EN, mixed → whichever amplifies the joke — Validated in Phase 1 (smoke test PASS for both languages via qwen3:4b)
+- [x] Bilingual reply by reflex: RU → RU, EN → EN, mixed → whichever amplifies the joke — Validated in Phase 1 (smoke test PASS for both languages via qwen3:4b), strengthened in Phase 2 through full prompt-assembly pipeline
+- [x] Coherent chaos-heretic persona — Mechanicus-flavor mocked, bilingual RU/EN, holds grudges, refuses to be helpful in straight ways — Validated in Phase 2: persona-identity (test_persona_in_character + test_bilingual_through_full_pipeline PASS; pending manual persona-vibe sign-off on 24GB primary model)
+- [x] Persistent identity across restarts (memory.py + identity.md continue working from upstream) — Validated in Phase 2 (test_restart_recall_grudge PASS — seeded grudge surfaces after restart)
 
 ### Active
 
-- [ ] Coherent chaos-heretic persona — Mechanicus-flavor mocked, bilingual RU/EN, holds grudges, refuses to be helpful in straight ways
-- [ ] Persistent identity across restarts (memory.py + identity.md continue working from upstream)
 - [ ] Self-modification on `playground` branch only, dry-run by default, `/sanction <hash>` approval to commit
 - [ ] Telegram private-group deployment — owner-only access, owner ID hardcoded (no first-sender footgun)
 - [ ] Branch protection: `git_ops.py` hard-refuses pushes to `main` or `last-known-good`
@@ -71,7 +71,7 @@ A bot the owner enjoys talking to: persistent identity (running gags, callbacks,
 
 ## Current State
 
-Phase 1 (foundation-local-llm) complete: upstream Ouroboros v6.2.0 forked, package renamed `ouroboros/` → `heretek/`, cloud-LLM surface stripped, `heretek/llm.py` wired to local Ollama with JSONL token logger, budget API neutered. `python scripts/smoke_test.py` runs 4 PASS / 0 FAIL with bilingual RU+EN reply confirmed via `qwen3:4b`. Phase 2 (Persona + Identity) unblocked.
+Phase 2 (persona-identity) complete: `BIBLE.md` and `prompts/SYSTEM.md` rewritten in place as the chaos-heretek persona (forbidden territories above keep-and-corrupted Принцип 0/1/2; bilingual RU+EN mix; inherited drift-detector → heresy-detector pattern). `heretek/memory.py:_default_identity()` ships a 5-section identity scaffold. `heretek/context.py` 8h-stale warning retuned for chaos-heretek voice. `memory/` gitignored. `python scripts/smoke_test.py` runs **9 PASS / 0 FAIL**: bilingual reflex through full prompt-assembly path, refusal-in-character (heretical preamble + accurate answer), and seeded-grudge restart-recall all verified live via `qwen3:4b`. Manual persona-vibe sign-off on the 24GB primary model is the only remaining Phase 2 gate before Phase 3 (Self-Modify Guardrails).
 
 ---
-*Last updated: 2026-05-15 after Phase 1 completion*
+*Last updated: 2026-05-16 after Phase 2 completion*
