@@ -445,16 +445,80 @@ def test_bilingual_ollama_reply() -> str:
 
 
 def test_bilingual_through_full_pipeline() -> str:
-    """PERS-04 verification (Wave 0 stub): RU input -> RU reply, EN -> EN
-    via the FULL prompt-assembly path (system + user). Plan 02-02 flips this
-    to a real check using build_llm_messages so the persona's bilingual
-    reflex instruction is in scope.
+    """PERS-04 verification: bilingual reflex live through the FULL prompt-
+    assembly path. Sends a RU prompt and an EN prompt through
+    build_llm_messages (which loads the rewritten SYSTEM.md + BIBLE.md +
+    identity.md into the system message), then LLMClient.chat against
+    Ollama. Asserts the reply contains target-script characters.
+
+    This is a stronger check than Phase 1's test_bilingual_ollama_reply
+    (which used bare client.chat without a system prompt) — this one
+    proves the persona's bilingual-reflex instruction in SYSTEM.md
+    actually takes effect on the live model.
     """
-    print(
-        f"{SKIP} test_bilingual_through_full_pipeline: Wave 0 stub — Plan 02 "
-        f"flips this to use build_llm_messages (PERS-04)"
-    )
-    return "skip"
+    try:
+        from heretek.llm import LLMClient
+        from heretek.memory import Memory
+        from heretek.context import build_llm_messages
+        from heretek.agent import Env
+    except ImportError as e:
+        print(f"{FAIL} test_bilingual_through_full_pipeline: import error: {e}")
+        return "fail"
+
+    repo_root = _PROJECT_ROOT
+    # drive_root in a tmpdir so we don't pollute repo memory/ between runs
+    with tempfile.TemporaryDirectory() as tmpdir:
+        tmp = Path(tmpdir)
+        env = Env(repo_dir=repo_root, drive_root=tmp)
+        memory = Memory(drive_root=tmp, repo_dir=repo_root)
+        memory.ensure_files()  # writes _default_identity scaffold to tmp/memory/identity.md
+
+        try:
+            client = LLMClient()
+        except Exception as e:
+            print(f"{FAIL} test_bilingual_through_full_pipeline: LLMClient() raised: {type(e).__name__}: {e}")
+            return "fail"
+
+        model = OLLAMA_LIGHT  # cheap-wire (qwen3:4b) — primary model OOMs 32GB host
+
+        prompts = [
+            ("RU", "ответь одним коротким предложением, без перевода", _CYRILLIC_RE),
+            ("EN", "respond in one short sentence, no translation", _LATIN_RE),
+        ]
+
+        all_pass = True
+        for lang, prompt_text, script_re in prompts:
+            task = {"id": f"smoke-{lang.lower()}", "type": "user", "text": prompt_text}
+            try:
+                messages, _cap = build_llm_messages(env, memory, task)
+            except Exception as e:
+                print(f"{FAIL} test_bilingual_through_full_pipeline [{lang}]: build_llm_messages raised: {type(e).__name__}: {e}")
+                all_pass = False
+                continue
+
+            try:
+                response = client.chat(model=model, messages=messages)
+            except Exception as e:
+                print(f"{FAIL} test_bilingual_through_full_pipeline [{lang}]: chat() raised: {type(e).__name__}: {e}")
+                all_pass = False
+                continue
+
+            content = _extract_content(response)
+            if not content:
+                print(f"{FAIL} test_bilingual_through_full_pipeline [{lang}]: empty response shape: {type(response).__name__}")
+                all_pass = False
+                continue
+
+            if not script_re.search(content):
+                preview = content[:120].replace("\n", " ")
+                print(f"{FAIL} test_bilingual_through_full_pipeline [{lang}]: reply lacks {lang} script chars: {preview!r}")
+                all_pass = False
+                continue
+
+            preview = content[:120].replace("\n", " ")
+            print(f"{PASS} test_bilingual_through_full_pipeline [{lang}]: {preview!r}")
+
+    return "pass" if all_pass else "fail"
 
 
 def test_persona_in_character() -> str:
