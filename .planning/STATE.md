@@ -3,13 +3,13 @@ gsd_state_version: 1.0
 milestone: v6.2
 milestone_name: milestone
 status: unknown
-stopped_at: Completed 03-01-PLAN.md
-last_updated: "2026-05-16T17:08:00.000Z"
+stopped_at: Completed 03-02-PLAN.md
+last_updated: "2026-05-16T17:13:37Z"
 progress:
   total_phases: 4
   completed_phases: 2
   total_plans: 10
-  completed_plans: 8
+  completed_plans: 9
 ---
 
 # Project State
@@ -24,7 +24,7 @@ See: .planning/PROJECT.md (updated 2026-05-14)
 ## Current Position
 
 Phase: 03 (self-modify-guardrails) — EXECUTING
-Plan: 2 of 3
+Plan: 3 of 3
 
 ## Performance Metrics
 
@@ -56,6 +56,7 @@ Plan: 2 of 3
 | Phase 02-persona-identity P01 | 8 min | 3 tasks | 7 files |
 | Phase 02-persona-identity P02 | 76 min | 3 tasks | 2 files |
 | Phase 03-self-modify-guardrails P01 | 4 min | 4 tasks | 9 files |
+| Phase 03-self-modify-guardrails P02 | 3 min | 3 tasks | 3 files |
 
 ## Accumulated Context
 
@@ -101,6 +102,10 @@ Recent decisions affecting current work:
 - [Phase 03-self-modify-guardrails]: Plan 03-01: _handle_promote_to_stable becomes no-op-with-deprecation-message (target last-known-good is now protected); tool entry preserved — deletion is Phase 4+ cleanup
 - [Phase 03-self-modify-guardrails]: Plan 03-01: HERETEK_PROTECTED_BRANCHES env var can EXPAND but not shrink the hardcoded floor {main, last-known-good}; defense-in-depth
 - [Phase 03-self-modify-guardrails]: Plan 03-01: Phase 1 deferred BRANCH_DEV/BRANCH_STABLE rename closed — playground/last-known-good across git_ops.py, workers.py, agent.py:Env; DRIVE_ROOT path rename deferred to Phase 4
+- [Phase 03-self-modify-guardrails]: Plan 03-02: --repo-dir flag placed on each subcommand parser (not parent) — argparse does not propagate parent-level flags that appear AFTER the subcommand token; smoke test calls 'heresy --repo-dir <path>' so flag must live on p_heresy
+- [Phase 03-self-modify-guardrails]: Plan 03-02: _create_rescue_snapshot() signature is (branch, reason, repo_state: Dict) not keyword-only; cmd_heresy() calls _collect_repo_sync_state() first then passes the result; rescue still best-effort in try/except
+- [Phase 03-self-modify-guardrails]: Plan 03-02: handle_slash_command() uses lazy local import of supervisor.commands inside function body — decouples telegram.py module-load order from new commands.py module (same Pitfall 3 mitigation pattern as Plan 03-01)
+- [Phase 03-self-modify-guardrails]: Plan 03-02: Dual-front-door pattern proven — same handler function callable via argparse CLI and future TG dispatch; Plan 03-03 follows this pattern for cmd_evolve and cmd_sanction
 
 ### Pending Todos
 
@@ -115,7 +120,7 @@ None yet.
 
 ## Session Continuity
 
-Last session: 2026-05-16T17:08:00.000Z
-Stopped at: Completed 03-01-PLAN.md
-Resume file: .planning/phases/03-self-modify-guardrails/03-01-SUMMARY.md
-Recommended next: Execute 03-02-PLAN.md (/heresy rollback command + cmd_heresy + test_heresy_rolls_back_to_tag flip).
+Last session: 2026-05-16T17:13:37Z
+Stopped at: Completed 03-02-PLAN.md
+Resume file: .planning/phases/03-self-modify-guardrails/03-02-SUMMARY.md
+Recommended next: Execute 03-03-PLAN.md (/evolve dry-run pipeline + /sanction with import-test gate + tag advance).

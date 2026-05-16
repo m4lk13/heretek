@@ -37,7 +37,7 @@
 - [x] **SAFE-02**: All bot self-modifications route to `playground` branch by default
 - [ ] **SAFE-03**: `/evolve` command defaults to dry-run mode — bot posts proposed diff to Telegram instead of committing
 - [ ] **SAFE-04**: `/sanction <commit-hash>` Telegram command approves a pending dry-run proposal and commits it to `playground`
-- [ ] **SAFE-05**: `/heresy` Telegram command rolls the working tree back to the `last-known-good` tag
+- [x] **SAFE-05**: `/heresy` Telegram command rolls the working tree back to the `last-known-good` tag
 - [ ] **SAFE-06**: Daily (or per-session) auto-tag of `last-known-good` at current `playground` HEAD so rollback target stays fresh
 
 ### Launch (LAUNCH)
@@ -103,7 +103,7 @@ Populated by roadmapper. Each requirement maps to exactly one phase.
 | SAFE-02 | Phase 3 | Complete |
 | SAFE-03 | Phase 3 | Pending |
 | SAFE-04 | Phase 3 | Pending |
-| SAFE-05 | Phase 3 | Pending |
+| SAFE-05 | Phase 3 | Complete |
 | SAFE-06 | Phase 3 | Pending |
 | LAUNCH-01 | Phase 4 | Pending |
 | LAUNCH-02 | Phase 4 | Pending |
