@@ -15,3 +15,6 @@ node_modules/
 
 # Heretek runtime state (identity, scratchpad, journal — bot-written, never committed)
 memory/
+
+# Heretek dry-run state (staging worktree + pending patches — bot-written, never committed)
+.heretek/
