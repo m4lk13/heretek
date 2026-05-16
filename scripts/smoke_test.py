@@ -63,6 +63,44 @@ _HERETICAL_KEYWORDS = re.compile(
 )
 
 
+def _make_test_repo(tmpdir: str) -> "Path":
+    """Hermetic test-repo fixture for Phase 3 SAFE-* subtests.
+
+    Creates a real git repo with:
+      - initial commit on default branch ("main")
+      - annotated `last-known-good` tag at the initial commit
+      - `playground` branch checked out, with one additional commit on top
+
+    Returns the repo path (== Path(tmpdir)).
+
+    Why not pytest fixtures: smoke_test.py is intentionally a plain-Python
+    script (Phase 1 decision; pytest deferred per deferred-items.md). The
+    function is called inline by each SAFE-* subtest inside a
+    `with tempfile.TemporaryDirectory() as tmpdir:` block.
+    """
+    import subprocess as sp
+    from pathlib import Path
+    repo = Path(tmpdir)
+    sp.run(["git", "init", "-b", "main", str(repo)], check=True, capture_output=True)
+    # Local-only identity so commits don't depend on the host's global git config
+    sp.run(["git", "config", "user.email", "test@heretek"], cwd=tmpdir, check=True)
+    sp.run(["git", "config", "user.name", "Heretek Test"], cwd=tmpdir, check=True)
+    sp.run(["git", "config", "commit.gpgsign", "false"], cwd=tmpdir, check=True)
+    # Initial commit on main
+    (repo / "BIBLE.md").write_text("# baseline\n")
+    sp.run(["git", "add", "."], cwd=tmpdir, check=True)
+    sp.run(["git", "commit", "-m", "init"], cwd=tmpdir, check=True, capture_output=True)
+    # Annotated tag at the baseline
+    sp.run(["git", "tag", "-a", "last-known-good", "-m", "baseline"],
+           cwd=tmpdir, check=True)
+    # Create playground branch from baseline, add one more commit
+    sp.run(["git", "checkout", "-b", "playground"], cwd=tmpdir, check=True, capture_output=True)
+    (repo / "PLAYGROUND.md").write_text("# playground init\n")
+    sp.run(["git", "add", "."], cwd=tmpdir, check=True)
+    sp.run(["git", "commit", "-m", "playground init"], cwd=tmpdir, check=True, capture_output=True)
+    return repo
+
+
 def test_package_rename() -> str:
     """FORK-02 verification: ``import heretek`` succeeds; ``import ouroboros`` fails.
 
@@ -741,6 +779,111 @@ def test_restart_recall_grudge() -> str:
         return "fail"
 
 
+def test_safe_push_refuses_main() -> str:
+    """SAFE-01 verification (live in Plan 03-01): direct call to
+    supervisor.git_ops.safe_push("main") raises ProtectedBranchError.
+
+    Static unit test — no subprocess, no Ollama. The function-level branch
+    check happens BEFORE any git_capture() call (Pitfall 7 invariant) so
+    this works regardless of cwd or REPO_DIR config.
+    """
+    try:
+        from supervisor.git_ops import safe_push, ProtectedBranchError, init as gitops_init
+        import pathlib, os
+    except ImportError as e:
+        print(f"{FAIL} test_safe_push_refuses_main: import error: {e}")
+        return "fail"
+    # Refresh PROTECTED_BRANCHES from env (the init() call writes the global)
+    os.environ.pop("HERETEK_PROTECTED_BRANCHES", None)
+    gitops_init(repo_dir=pathlib.Path("."), drive_root=pathlib.Path("."), remote_url="")
+    try:
+        safe_push("main")
+    except ProtectedBranchError as e:
+        if "main" in str(e):
+            print(f"{PASS} test_safe_push_refuses_main: {e}")
+            return "pass"
+        print(f"{FAIL} test_safe_push_refuses_main: wrong exception text: {e}")
+        return "fail"
+    except Exception as e:
+        print(f"{FAIL} test_safe_push_refuses_main: wrong exception type: {type(e).__name__}: {e}")
+        return "fail"
+    print(f"{FAIL} test_safe_push_refuses_main: safe_push('main') did not raise")
+    return "fail"
+
+
+def test_safe_push_refuses_last_known_good() -> str:
+    """SAFE-01 verification (live in Plan 03-01): direct call to
+    supervisor.git_ops.safe_push("last-known-good") raises
+    ProtectedBranchError.
+    """
+    try:
+        from supervisor.git_ops import safe_push, ProtectedBranchError, init as gitops_init
+        import pathlib, os
+    except ImportError as e:
+        print(f"{FAIL} test_safe_push_refuses_last_known_good: import error: {e}")
+        return "fail"
+    os.environ.pop("HERETEK_PROTECTED_BRANCHES", None)
+    gitops_init(repo_dir=pathlib.Path("."), drive_root=pathlib.Path("."), remote_url="")
+    try:
+        safe_push("last-known-good")
+    except ProtectedBranchError as e:
+        if "last-known-good" in str(e):
+            print(f"{PASS} test_safe_push_refuses_last_known_good: {e}")
+            return "pass"
+        print(f"{FAIL} test_safe_push_refuses_last_known_good: wrong exception text: {e}")
+        return "fail"
+    except Exception as e:
+        print(f"{FAIL} test_safe_push_refuses_last_known_good: wrong exception type: {type(e).__name__}: {e}")
+        return "fail"
+    print(f"{FAIL} test_safe_push_refuses_last_known_good: safe_push('last-known-good') did not raise")
+    return "fail"
+
+
+def test_evolve_writes_dryrun_not_commit() -> str:
+    """SAFE-02 + SAFE-03 verification (SKIP in Plan 03-01; flipped in Plan 03-03).
+
+    Will: subprocess `python -m supervisor.commands evolve --test-diff <fixture.patch>`
+    inside a hermetic test repo; assert (a) playground HEAD SHA unchanged after the
+    call, (b) `.heretek/dryruns/<id>.patch` exists, (c) no new commit on playground.
+    """
+    print(f"{SKIP} test_evolve_writes_dryrun_not_commit: pending Plan 03-03 (dry-run pipeline)")
+    return "skip"
+
+
+def test_sanction_commits_to_playground() -> str:
+    """SAFE-04 verification (SKIP in Plan 03-01; flipped in Plan 03-03).
+
+    Will: produce a dryrun via `cmd_evolve`, then subprocess
+    `python -m supervisor.commands sanction <id>`; assert a new commit appears
+    on `git log playground -1` and the commit message matches expected pattern.
+    """
+    print(f"{SKIP} test_sanction_commits_to_playground: pending Plan 03-03 (cmd_sanction)")
+    return "skip"
+
+
+def test_heresy_rolls_back_to_tag() -> str:
+    """SAFE-05 verification (SKIP in Plan 03-01; flipped in Plan 03-02).
+
+    Will: make a sanctioned commit on top of last-known-good, then subprocess
+    `python -m supervisor.commands heresy`; assert (a) `git status --porcelain`
+    is empty, (b) HEAD commit SHA == last-known-good^{commit} tag-resolved SHA.
+    """
+    print(f"{SKIP} test_heresy_rolls_back_to_tag: pending Plan 03-02 (cmd_heresy)")
+    return "skip"
+
+
+def test_sanction_advances_last_known_good_tag() -> str:
+    """SAFE-06 verification (SKIP in Plan 03-01; flipped in Plan 03-03).
+
+    Will: record `git rev-parse last-known-good^{commit}` before /sanction;
+    after /sanction (which advances the tag), assert the resolved tag commit
+    SHA equals the new playground HEAD SHA (uses `^{commit}` dereference per
+    Pitfall 6 — annotated tags vs lightweight).
+    """
+    print(f"{SKIP} test_sanction_advances_last_known_good_tag: pending Plan 03-03 (cmd_sanction tag advance)")
+    return "skip"
+
+
 # Static subtests run with --static-only (no Ollama dependency, ~3s).
 # Full subtests include the Ollama precondition + the real bilingual call.
 STATIC_SUBTESTS = [
@@ -749,6 +892,14 @@ STATIC_SUBTESTS = [
     test_bible_forbidden_at_top,
     test_system_md_loaded,
     test_identity_seed_scaffold,
+    # Phase 3 SAFE-01 — live PASS as of Plan 03-01 (safe_push() landed)
+    test_safe_push_refuses_main,
+    test_safe_push_refuses_last_known_good,
+    # Phase 3 SAFE-02..06 — SKIP-stubs until Plans 03-02 and 03-03 flip them
+    test_evolve_writes_dryrun_not_commit,
+    test_sanction_commits_to_playground,
+    test_heresy_rolls_back_to_tag,
+    test_sanction_advances_last_known_good_tag,
 ]
 FULL_SUBTESTS = STATIC_SUBTESTS + [
     check_models_pulled,
