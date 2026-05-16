@@ -112,7 +112,10 @@ def _git_push_with_tests(ctx: ToolContext) -> Optional[str]:
         pass
 
     try:
-        run_cmd(["git", "push", "origin", ctx.branch_dev], cwd=ctx.repo_dir)
+        from supervisor.git_ops import safe_push, ProtectedBranchError
+        safe_push(ctx.branch_dev)
+    except ProtectedBranchError as e:
+        return f"⚠️ PROTECTED_BRANCH: {e}\nCommitted locally but NOT pushed (target branch is protected)."
     except Exception as e:
         return f"⚠️ GIT_ERROR (push): {e}\nCommitted locally but NOT pushed."
 

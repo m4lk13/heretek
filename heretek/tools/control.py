@@ -215,7 +215,7 @@ def get_tools() -> List[ToolEntry]:
         }, _request_restart),
         ToolEntry("promote_to_stable", {
             "name": "promote_to_stable",
-            "description": "Promote heretek -> heretek-stable. Call when you consider the code stable.",
+            "description": "Superseded by /sanction in Phase 3; use /sanction <hash> to advance last-known-good. This tool now returns a deprecation notice via the event handler.",
             "parameters": {"type": "object", "properties": {"reason": {"type": "string"}}, "required": ["reason"]},
         }, _promote_to_stable),
         ToolEntry("schedule_task", {

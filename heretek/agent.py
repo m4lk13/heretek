@@ -161,21 +161,15 @@ class OuroborosAgent:
                     # Validate branch name
                     if not re.match(r'^[a-zA-Z0-9_/-]+$', self.env.branch_dev):
                         raise ValueError(f"Invalid branch name: {self.env.branch_dev}")
-                    # Pull with rebase before push
-                    subprocess.run(
-                        ["git", "pull", "--rebase", "origin", self.env.branch_dev],
-                        cwd=str(self.env.repo_dir), timeout=60, check=True
-                    )
-                    # Push
+                    # Push via safe_push() — branch protection enforced; pull --rebase is inside safe_push
                     try:
-                        subprocess.run(
-                            ["git", "push", "origin", self.env.branch_dev],
-                            cwd=str(self.env.repo_dir), timeout=60, check=True
-                        )
+                        from supervisor.git_ops import safe_push, ProtectedBranchError
+                        safe_push(self.env.branch_dev)
                         auto_committed = True
                         log.warning(f"Auto-rescued {len(dirty_files)} uncommitted files on startup")
-                    except subprocess.CalledProcessError:
-                        # If push fails, undo the commit
+                    except (subprocess.CalledProcessError, ProtectedBranchError, RuntimeError) as e:
+                        log.warning(f"Auto-rescue push failed ({type(e).__name__}): {e} — undoing commit")
+                        # If push fails (including protected-branch refusal), undo the commit
                         subprocess.run(
                             ["git", "reset", "HEAD~1"],
                             cwd=str(self.env.repo_dir), timeout=10, check=True

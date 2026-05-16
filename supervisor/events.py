@@ -200,30 +200,25 @@ def _handle_restart_request(evt: Dict[str, Any], ctx: Any) -> None:
 
 
 def _handle_promote_to_stable(evt: Dict[str, Any], ctx: Any) -> None:
-    import subprocess as sp
+    """Superseded by /sanction (Phase 3). No longer pushes to last-known-good.
+
+    The promote_to_stable LLM-tool used to push BRANCH_DEV:BRANCH_STABLE, which
+    now targets the protected `last-known-good` branch. The owner-driven
+    /sanction <hash> command (supervisor/commands.py) is the new path to
+    advance last-known-good. This handler logs the event and sends a
+    one-line deprecation notice to owner_chat_id if one is configured.
+    """
+    msg = (
+        "promote_to_stable is superseded by /sanction in Phase 3. "
+        "Use /sanction <hash> to advance last-known-good."
+    )
+    log.warning("promote_to_stable event received but superseded by /sanction: %s", msg)
     try:
-        sp.run(["git", "fetch", "origin"], cwd=str(ctx.REPO_DIR), check=True)
-        sp.run(
-            ["git", "push", "origin", f"{ctx.BRANCH_DEV}:{ctx.BRANCH_STABLE}"],
-            cwd=str(ctx.REPO_DIR), check=True,
-        )
-        new_sha = sp.run(
-            ["git", "rev-parse", f"origin/{ctx.BRANCH_STABLE}"],
-            cwd=str(ctx.REPO_DIR), capture_output=True, text=True, check=True,
-        ).stdout.strip()
         st = ctx.load_state()
         if st.get("owner_chat_id"):
-            ctx.send_with_budget(
-                int(st["owner_chat_id"]),
-                f"✅ Промоут: {ctx.BRANCH_DEV} → {ctx.BRANCH_STABLE} ({new_sha[:8]})",
-            )
-    except Exception as e:
-        st = ctx.load_state()
-        if st.get("owner_chat_id"):
-            ctx.send_with_budget(
-                int(st["owner_chat_id"]),
-                f"❌ Ошибка промоута в stable: {e}",
-            )
+            ctx.send_with_budget(int(st["owner_chat_id"]), f"⚠️ {msg}")
+    except Exception:
+        log.debug("promote_to_stable deprecation notice not delivered", exc_info=True)
 
 
 def _find_duplicate_task(desc: str, pending: list, running: dict) -> Optional[str]:
