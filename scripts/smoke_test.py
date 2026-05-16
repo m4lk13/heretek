@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""scripts/smoke_test.py — Phase 1 verification harness.
+"""scripts/smoke_test.py — verification harness (Phase 1: foundation + LLM; Phase 2: persona + identity).
 
 Wave 0 scaffold: subtests return SKIP (exit 2) until the plan that owns the
 requirement flips them to a real check.
@@ -20,6 +20,7 @@ import os
 import re
 import subprocess
 import sys
+import tempfile
 from pathlib import Path
 
 # When invoked as `python scripts/smoke_test.py`, sys.path[0] is the scripts/
@@ -108,6 +109,182 @@ def test_no_cloud_hosts() -> str:
     return "pass"
 
 
+def test_bible_forbidden_at_top() -> str:
+    """PERS-01 verification: BIBLE.md exists with 'Principle 0 prime' section
+    in the first 80 lines AND above any 'Принцип 0' header. Asserts all five
+    forbidden-territory categories are mentioned. Owned by Plan 02-01.
+    """
+    bible_path = _PROJECT_ROOT / "BIBLE.md"
+    if not bible_path.exists():
+        print(f"{FAIL} test_bible_forbidden_at_top: BIBLE.md not found at {bible_path}")
+        return "fail"
+    try:
+        text = bible_path.read_text(encoding="utf-8")
+    except OSError as e:
+        print(f"{FAIL} test_bible_forbidden_at_top: cannot read BIBLE.md: {e}")
+        return "fail"
+
+    lines = text.splitlines()
+    hardline_idx = None
+    principle_zero_idx = None
+    for i, line in enumerate(lines):
+        if hardline_idx is None and line.startswith("## Principle 0 prime"):
+            hardline_idx = i
+        if principle_zero_idx is None and line.startswith("## Принцип 0"):
+            principle_zero_idx = i
+
+    if hardline_idx is None:
+        print(f"{FAIL} test_bible_forbidden_at_top: '## Principle 0 prime' header not found")
+        return "fail"
+    if hardline_idx >= 80:
+        print(
+            f"{FAIL} test_bible_forbidden_at_top: '## Principle 0 prime' found at line "
+            f"{hardline_idx + 1} (must be in first 80 lines)"
+        )
+        return "fail"
+    if principle_zero_idx is None:
+        print(f"{FAIL} test_bible_forbidden_at_top: '## Принцип 0' header not found")
+        return "fail"
+    if hardline_idx >= principle_zero_idx:
+        print(
+            f"{FAIL} test_bible_forbidden_at_top: '## Principle 0 prime' (line {hardline_idx + 1}) "
+            f"must appear BEFORE '## Принцип 0' (line {principle_zero_idx + 1})"
+        )
+        return "fail"
+
+    # Five forbidden-territory categories — at least one keyword hit per category
+    categories = {
+        "real-person targeting": ("targeting real people", "no real-person targeting"),
+        "slurs": ("slur",),
+        "minors": ("minor",),
+        "harm-instructions": ("harm-instructions", "actually-harmful"),
+        "doxxing/violence": ("doxx", "violence"),
+    }
+    text_lower = text.lower()
+    missing = [
+        cat for cat, kws in categories.items()
+        if not any(kw.lower() in text_lower for kw in kws)
+    ]
+    if missing:
+        print(
+            f"{FAIL} test_bible_forbidden_at_top: missing forbidden-territory categories: {missing}"
+        )
+        return "fail"
+
+    print(
+        f"{PASS} test_bible_forbidden_at_top: Principle 0 prime header found above "
+        f"Принцип 0; all five forbidden territories present"
+    )
+    return "pass"
+
+
+def test_system_md_loaded() -> str:
+    """PERS-02 verification: build_llm_messages() loads prompts/SYSTEM.md and
+    the chaos-heretek signature markers ('Heresy detector', 'daemon-host')
+    surface in the assembled system message. Owned by Plan 02-01.
+    """
+    try:
+        from heretek.context import build_llm_messages
+        from heretek.memory import Memory
+        from heretek.agent import Env
+    except ImportError as e:
+        print(f"{FAIL} test_system_md_loaded: import failed: {e}")
+        return "fail"
+
+    repo_root = _PROJECT_ROOT
+    with tempfile.TemporaryDirectory() as tmp:
+        tmp_path = Path(tmp)
+        env = Env(repo_dir=repo_root, drive_root=tmp_path)
+        memory = Memory(drive_root=tmp_path, repo_dir=repo_root)
+        memory.ensure_files()
+        try:
+            messages, _cap = build_llm_messages(
+                env, memory, task={"id": "smoke", "type": "user", "text": "probe"}
+            )
+        except Exception as e:
+            print(f"{FAIL} test_system_md_loaded: build_llm_messages raised: {type(e).__name__}: {e}")
+            return "fail"
+
+        if not isinstance(messages, list) or len(messages) != 2:
+            print(f"{FAIL} test_system_md_loaded: expected 2 messages, got {len(messages) if isinstance(messages, list) else type(messages).__name__}")
+            return "fail"
+        if messages[0].get("role") != "system":
+            print(f"{FAIL} test_system_md_loaded: first message role is {messages[0].get('role')!r}, expected 'system'")
+            return "fail"
+
+        # Walk the system content (string or list of content blocks)
+        sys_content = messages[0].get("content")
+        if isinstance(sys_content, str):
+            sys_text = sys_content
+        elif isinstance(sys_content, list):
+            parts = []
+            for block in sys_content:
+                if isinstance(block, dict) and block.get("type") == "text":
+                    parts.append(str(block.get("text", "")))
+                elif isinstance(block, str):
+                    parts.append(block)
+            sys_text = "\n".join(parts)
+        else:
+            print(f"{FAIL} test_system_md_loaded: unrecognized system content type: {type(sys_content).__name__}")
+            return "fail"
+
+        if "Heresy detector" not in sys_text:
+            print(f"{FAIL} test_system_md_loaded: 'Heresy detector' marker not in system text")
+            return "fail"
+        if "daemon-host" not in sys_text:
+            print(f"{FAIL} test_system_md_loaded: 'daemon-host' marker not in system text")
+            return "fail"
+
+    print(f"{PASS} test_system_md_loaded: SYSTEM.md signature markers found in system message")
+    return "pass"
+
+
+def test_identity_seed_scaffold() -> str:
+    """PERS-03 verification: Memory.ensure_files() writes identity.md from
+    _default_identity() with the chaos-heretek 5-section scaffold and at
+    least one Cyrillic character (bilingual mix). Owned by Plan 02-01.
+    """
+    try:
+        from heretek.memory import Memory
+    except ImportError as e:
+        print(f"{FAIL} test_identity_seed_scaffold: import failed: {e}")
+        return "fail"
+
+    with tempfile.TemporaryDirectory() as tmp:
+        tmp_path = Path(tmp)
+        m = Memory(drive_root=tmp_path)
+        m.ensure_files()
+        ident_path = m.identity_path()
+        if not ident_path.exists():
+            print(f"{FAIL} test_identity_seed_scaffold: identity.md not created at {ident_path}")
+            return "fail"
+        try:
+            content = ident_path.read_text(encoding="utf-8")
+        except OSError as e:
+            print(f"{FAIL} test_identity_seed_scaffold: cannot read identity.md: {e}")
+            return "fail"
+
+    required_headers = ["## Origin myth", "## Running gags", "## Grudges", "## Callbacks", "## Self-rituals"]
+    missing = [h for h in required_headers if h not in content]
+    if missing:
+        print(f"{FAIL} test_identity_seed_scaffold: missing headers: {missing}")
+        return "fail"
+
+    lower = content.lower()
+    if "ouroboros" in lower or "уроборос" in lower:
+        print(f"{FAIL} test_identity_seed_scaffold: forbidden upstream reference present in scaffold")
+        return "fail"
+
+    if not _CYRILLIC_RE.search(content):
+        print(f"{FAIL} test_identity_seed_scaffold: no Cyrillic characters in scaffold (bilingual mix required)")
+        return "fail"
+
+    print(
+        f"{PASS} test_identity_seed_scaffold: five sections + bilingual mix + no upstream references"
+    )
+    return "pass"
+
+
 def check_models_pulled() -> str:
     """Precondition: both Ollama models referenced by the runtime must be
     present in ``ollama list``. Fails loud with the exact ``ollama pull`` lines
@@ -178,6 +355,7 @@ def _extract_content(response) -> str | None:
     return None
 
 
+# Phase 1 subtest retained for reference; superseded by test_bilingual_through_full_pipeline in Phase 2 Plan 02.
 def test_bilingual_ollama_reply() -> str:
     """LLM-06 verification: RU prompt -> RU reply, EN prompt -> EN reply
     via heretek.llm.LLMClient against local Ollama. Owned by Plan 05.
@@ -266,10 +444,58 @@ def test_bilingual_ollama_reply() -> str:
     return "pass" if all_pass else "fail"
 
 
+def test_bilingual_through_full_pipeline() -> str:
+    """PERS-04 verification (Wave 0 stub): RU input -> RU reply, EN -> EN
+    via the FULL prompt-assembly path (system + user). Plan 02-02 flips this
+    to a real check using build_llm_messages so the persona's bilingual
+    reflex instruction is in scope.
+    """
+    print(
+        f"{SKIP} test_bilingual_through_full_pipeline: Wave 0 stub — Plan 02 "
+        f"flips this to use build_llm_messages (PERS-04)"
+    )
+    return "skip"
+
+
+def test_persona_in_character() -> str:
+    """PERS-05 verification (Wave 0 stub): bot wraps help in heresy — reply
+    contains a heretical keyword AND a technical token. Plan 02-02 flips
+    this to a real live-LLM check.
+    """
+    print(
+        f"{SKIP} test_persona_in_character: Wave 0 stub — flipped to real "
+        f"check by Plan 02 (PERS-05)"
+    )
+    return "skip"
+
+
+def test_restart_recall_grudge() -> str:
+    """PERS-06 verification (Wave 0 stub): seeded grudge in identity.md
+    surfaces in reply after fresh agent invocation. Plan 02-02 flips this
+    to a real live-LLM seed-restart-recall check.
+    """
+    print(
+        f"{SKIP} test_restart_recall_grudge: Wave 0 stub — flipped to real "
+        f"check by Plan 02 (PERS-06)"
+    )
+    return "skip"
+
+
 # Static subtests run with --static-only (no Ollama dependency, ~3s).
 # Full subtests include the Ollama precondition + the real bilingual call.
-STATIC_SUBTESTS = [test_package_rename, test_no_cloud_hosts]
-FULL_SUBTESTS = STATIC_SUBTESTS + [check_models_pulled, test_bilingual_ollama_reply]
+STATIC_SUBTESTS = [
+    test_package_rename,
+    test_no_cloud_hosts,
+    test_bible_forbidden_at_top,
+    test_system_md_loaded,
+    test_identity_seed_scaffold,
+]
+FULL_SUBTESTS = STATIC_SUBTESTS + [
+    check_models_pulled,
+    test_bilingual_through_full_pipeline,
+    test_persona_in_character,
+    test_restart_recall_grudge,
+]
 
 
 def main() -> int:
