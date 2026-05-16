@@ -24,24 +24,44 @@ from supervisor.state import (
 log = logging.getLogger(__name__)
 
 
+class ProtectedBranchError(RuntimeError):
+    """Raised when safe_push() is called with a protected branch target.
+
+    Programming-model error: the caller attempted to write to a branch
+    that is in PROTECTED_BRANCHES. The protected list is configured via
+    HERETEK_PROTECTED_BRANCHES env var (comma-separated) with hardcoded
+    fallback {main, last-known-good}.
+    """
+
+
 # ---------------------------------------------------------------------------
 # Module-level config (set via init())
 # ---------------------------------------------------------------------------
 REPO_DIR: pathlib.Path = pathlib.Path("/content/heretek_repo")
 DRIVE_ROOT: pathlib.Path = pathlib.Path("/content/drive/MyDrive/Ouroboros")
 REMOTE_URL: str = ""
-BRANCH_DEV: str = "heretek"
-BRANCH_STABLE: str = "heretek-stable"
+BRANCH_DEV: str = "playground"
+BRANCH_STABLE: str = "last-known-good"
+# Defense-in-depth: unsetting HERETEK_PROTECTED_BRANCHES env var cannot widen permissions.
+# Hardcoded fallback is the safety floor. init() refreshes from env at supervisor boot.
+PROTECTED_BRANCHES: frozenset = frozenset({"main", "last-known-good"})
 
 
 def init(repo_dir: pathlib.Path, drive_root: pathlib.Path, remote_url: str,
-         branch_dev: str = "heretek", branch_stable: str = "heretek-stable") -> None:
-    global REPO_DIR, DRIVE_ROOT, REMOTE_URL, BRANCH_DEV, BRANCH_STABLE
+         branch_dev: str = "playground", branch_stable: str = "last-known-good") -> None:
+    global REPO_DIR, DRIVE_ROOT, REMOTE_URL, BRANCH_DEV, BRANCH_STABLE, PROTECTED_BRANCHES
     REPO_DIR = repo_dir
     DRIVE_ROOT = drive_root
     REMOTE_URL = remote_url
     BRANCH_DEV = branch_dev
     BRANCH_STABLE = branch_stable
+    raw = os.environ.get("HERETEK_PROTECTED_BRANCHES", "").strip()
+    if raw:
+        parsed = frozenset(b.strip() for b in raw.split(",") if b.strip())
+        # Refuse to narrow below the hardcoded floor — env var can EXPAND but not shrink
+        PROTECTED_BRANCHES = parsed | frozenset({"main", "last-known-good"})
+    else:
+        PROTECTED_BRANCHES = frozenset({"main", "last-known-good"})
 
 
 # ---------------------------------------------------------------------------
@@ -199,6 +219,57 @@ def _create_rescue_snapshot(branch: str, reason: str,
     atomic_write_text(rescue_dir / "rescue_meta.json",
                       json.dumps(info, ensure_ascii=False, indent=2))
     return info
+
+
+# ---------------------------------------------------------------------------
+# Safe push — branch-protection chokepoint
+# ---------------------------------------------------------------------------
+
+def safe_push(branch: str, refspec: Optional[str] = None) -> None:
+    """Single sanctioned write path to git remotes for all bot self-modification.
+
+    Refuses (raises ProtectedBranchError) if `branch` is in PROTECTED_BRANCHES.
+    The refusal check happens BEFORE any subprocess call (Pitfall 7 invariant).
+
+    On allowed branch: runs `git pull --rebase origin <branch>` (best-effort)
+    then `git push origin <refspec or branch>` and raises RuntimeError on
+    non-zero push exit code.
+
+    Args:
+        branch: target branch name; refused if in PROTECTED_BRANCHES.
+        refspec: optional explicit refspec (e.g. "playground:last-known-good");
+                 if None, defaults to pushing `branch`.
+
+    Raises:
+        ProtectedBranchError: if `branch` is in PROTECTED_BRANCHES.
+        RuntimeError: if the underlying git push fails.
+    """
+    # INVARIANT: branch check happens before any git_capture() call.
+    if branch in PROTECTED_BRANCHES:
+        try:
+            append_jsonl(DRIVE_ROOT / "logs" / "supervisor.jsonl", {
+                "ts": datetime.datetime.now(datetime.timezone.utc).isoformat(),
+                "type": "safe_push_refused",
+                "target_branch": branch,
+                "refspec": refspec,
+                "protected_branches": sorted(PROTECTED_BRANCHES),
+            })
+        except Exception:
+            # Audit-log failure must not prevent the refusal itself
+            log.warning("safe_push: audit log write failed (continuing with refusal)", exc_info=True)
+        raise ProtectedBranchError(
+            f"Push to protected branch '{branch}' refused (protected: {sorted(PROTECTED_BRANCHES)})"
+        )
+
+    # Allowed path: best-effort pull --rebase, then push.
+    rc, _, _ = git_capture(["git", "pull", "--rebase", "origin", branch])
+    if rc != 0:
+        log.debug("safe_push: pull --rebase failed (continuing with push attempt)")
+
+    push_target = refspec if refspec else branch
+    rc, stdout, stderr = git_capture(["git", "push", "origin", push_target])
+    if rc != 0:
+        raise RuntimeError(f"git push origin {push_target} failed (rc={rc}): {stderr}")
 
 
 # ---------------------------------------------------------------------------
