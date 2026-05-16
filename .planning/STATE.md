@@ -3,13 +3,13 @@ gsd_state_version: 1.0
 milestone: v6.2
 milestone_name: milestone
 status: unknown
-stopped_at: Phase 3 context gathered
-last_updated: "2026-05-16T16:01:00.603Z"
+stopped_at: Completed 03-01-PLAN.md
+last_updated: "2026-05-16T17:08:00.000Z"
 progress:
   total_phases: 4
   completed_phases: 2
-  total_plans: 7
-  completed_plans: 7
+  total_plans: 10
+  completed_plans: 8
 ---
 
 # Project State
@@ -19,12 +19,12 @@ progress:
 See: .planning/PROJECT.md (updated 2026-05-14)
 
 **Core value:** A bot the owner enjoys talking to — persistent identity, bilingual RU/EN by reflex, free local inference, self-modification gated by an approval workflow
-**Current focus:** Phase 02 — persona-identity
+**Current focus:** Phase 03 — self-modify-guardrails
 
 ## Current Position
 
-Phase: 02 (persona-identity) — COMPLETE (pending manual persona-quality sign-off on primary model)
-Plan: 2 of 2 (both Plan 02-01 and Plan 02-02 complete)
+Phase: 03 (self-modify-guardrails) — EXECUTING
+Plan: 2 of 3
 
 ## Performance Metrics
 
@@ -55,6 +55,7 @@ Plan: 2 of 2 (both Plan 02-01 and Plan 02-02 complete)
 | Phase 01-foundation-local-llm P05 | 15 min | 3 tasks | 4 files |
 | Phase 02-persona-identity P01 | 8 min | 3 tasks | 7 files |
 | Phase 02-persona-identity P02 | 76 min | 3 tasks | 2 files |
+| Phase 03-self-modify-guardrails P01 | 4 min | 4 tasks | 9 files |
 
 ## Accumulated Context
 
@@ -95,6 +96,11 @@ Recent decisions affecting current work:
 - [Phase 02-persona-identity]: Plan 02-02: Hermetic test pattern locked — all live-LLM subtests use tempfile.TemporaryDirectory() as drive_root so repo memory/ stays clean and tests are idempotent across runs without try/finally restore. Verified: 5/5 consecutive full-suite runs leave repo memory/ non-existent.
 - [Phase 02-persona-identity]: Plan 02-02: Diagnostic mid-test sanity-split pattern established — PERS-06 confirms the seeded grudge IS in the assembled prompt BEFORE the LLM call, separating build_llm_messages bugs from model-recall failures. Reusable pattern for any future identity/scratchpad-influenced test.
 - [Phase 02-persona-identity]: Plan 02-02: Full smoke suite reliably GREEN at 9 PASS / 0 FAIL / 0 SKIP across 5/5 consecutive runs on qwen3:4b. Phase 2 ROADMAP success criteria 1-5 all automatable via smoke harness; only manual persona-quality sign-off (Owner, primary model) remains before /gsd:verify-work.
+- [Phase 03-self-modify-guardrails]: Plan 03-01: safe_push() refusal check BEFORE any git_capture() call (Pitfall 7 invariant) — protected-branch check is pure Python; no subprocess risk on misconfigured REPO_DIR
+- [Phase 03-self-modify-guardrails]: Plan 03-01: Cross-package import heretek/* -> supervisor/git_ops done as local import inside function body (Pitfall 3) — not at module level
+- [Phase 03-self-modify-guardrails]: Plan 03-01: _handle_promote_to_stable becomes no-op-with-deprecation-message (target last-known-good is now protected); tool entry preserved — deletion is Phase 4+ cleanup
+- [Phase 03-self-modify-guardrails]: Plan 03-01: HERETEK_PROTECTED_BRANCHES env var can EXPAND but not shrink the hardcoded floor {main, last-known-good}; defense-in-depth
+- [Phase 03-self-modify-guardrails]: Plan 03-01: Phase 1 deferred BRANCH_DEV/BRANCH_STABLE rename closed — playground/last-known-good across git_ops.py, workers.py, agent.py:Env; DRIVE_ROOT path rename deferred to Phase 4
 
 ### Pending Todos
 
@@ -109,7 +115,7 @@ None yet.
 
 ## Session Continuity
 
-Last session: 2026-05-16T16:01:00.600Z
-Stopped at: Phase 3 context gathered
-Resume file: .planning/phases/03-self-modify-guardrails/03-CONTEXT.md
-Recommended next: Manual persona-quality sign-off on primary 24GB model (VALIDATION.md §Manual-Only) → `/gsd:verify-work 2` → `/gsd:plan-phase 3` (Self-Modify Guardrails).
+Last session: 2026-05-16T17:08:00.000Z
+Stopped at: Completed 03-01-PLAN.md
+Resume file: .planning/phases/03-self-modify-guardrails/03-01-SUMMARY.md
+Recommended next: Execute 03-02-PLAN.md (/heresy rollback command + cmd_heresy + test_heresy_rolls_back_to_tag flip).
