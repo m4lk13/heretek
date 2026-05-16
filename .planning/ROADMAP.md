@@ -13,7 +13,7 @@ Fork Ouroboros v6.2.0, swap its cloud LLM for local Ollama, dress it in a chaos-
 Decimal phases appear between their surrounding integers in numeric order.
 
 - [x] **Phase 1: Foundation + Local LLM** - Fork, rename, strip, and wire local Ollama inference; smoke-test bilingual output
-- [ ] **Phase 2: Persona + Identity** - Author CODEX_HERETICUS.md and SYSTEM.md; prove the bot has a voice and persistent identity
+- [x] **Phase 2: Persona + Identity** - Author CODEX_HERETICUS.md and SYSTEM.md; prove the bot has a voice and persistent identity (manual persona-quality sign-off pending)
 - [ ] **Phase 3: Self-Modify Guardrails** - Branch protection, dry-run gate, /sanction and /heresy commands wired and tested offline
 - [ ] **Phase 4: Launch + First Evolution** - Deploy to private Telegram group; complete one full /evolve → diff → /sanction → playground-commit loop
 
@@ -48,7 +48,7 @@ Decimal phases appear between their surrounding integers in numeric order.
   5. After `kill` and restart, the bot recalls a fact established in the previous session (running gag or grudge surfaces from memory store)
 **Plans**: 2 plans
 - [x] 02-01-PLAN.md — Rewrite BIBLE.md + prompts/SYSTEM.md as chaos-heretek persona; rewrite _default_identity scaffold; retune 8h-stale warning; gitignore memory/; Wave 0 smoke-test scaffold (3 static PASS + 3 SKIP stubs)
-- [ ] 02-02-PLAN.md — Flip 3 SKIP stubs to real assertions via build_llm_messages + LLMClient.chat: test_bilingual_through_full_pipeline (PERS-04), test_persona_in_character (PERS-05), test_restart_recall_grudge (PERS-06)
+- [x] 02-02-PLAN.md — Flip 3 SKIP stubs to real assertions via build_llm_messages + LLMClient.chat: test_bilingual_through_full_pipeline (PERS-04), test_persona_in_character (PERS-05), test_restart_recall_grudge (PERS-06)
 
 ### Phase 3: Self-Modify Guardrails
 **Goal**: The self-modification path is safe to run — branch protection enforced, dry-run default active, rollback command functional — all verifiable without touching Telegram
@@ -83,6 +83,6 @@ Phases execute in numeric order: 1 → 2 → 3 → 4
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
 | 1. Foundation + Local LLM | 5/5 | Complete | 2026-05-15 |
-| 2. Persona + Identity | 0/? | Not started | - |
+| 2. Persona + Identity | 2/2 | Complete | 2026-05-16 |
 | 3. Self-Modify Guardrails | 0/? | Not started | - |
 | 4. Launch + First Evolution | 0/? | Not started | - |
