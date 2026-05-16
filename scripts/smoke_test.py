@@ -840,25 +840,173 @@ def test_safe_push_refuses_last_known_good() -> str:
 
 
 def test_evolve_writes_dryrun_not_commit() -> str:
-    """SAFE-02 + SAFE-03 verification (SKIP in Plan 03-01; flipped in Plan 03-03).
+    """SAFE-02 + SAFE-03 verification (LIVE in Plan 03-03): /evolve writes a
+    dry-run patch + sidecar but does NOT create a commit on playground.
 
-    Will: subprocess `python -m supervisor.commands evolve --test-diff <fixture.patch>`
-    inside a hermetic test repo; assert (a) playground HEAD SHA unchanged after the
-    call, (b) `.heretek/dryruns/<id>.patch` exists, (c) no new commit on playground.
+    Integration test via subprocess: hermetic repo + cmd_evolve via the CLI
+    shim with --test-diff scripts/fixtures/heresy_test.patch. Asserts:
+      (a) playground HEAD SHA unchanged after the call
+      (b) .heretek/dryruns/<id>.patch exists inside the test repo
+      (c) .heretek/dryruns/<id>.json sidecar exists with status='pending'
+      (d) git log playground (count of commits) is unchanged
     """
-    print(f"{SKIP} test_evolve_writes_dryrun_not_commit: pending Plan 03-03 (dry-run pipeline)")
-    return "skip"
+    import json
+    import subprocess as sp
+    import tempfile
+
+    project_root = str(_PROJECT_ROOT)
+    fixture = _PROJECT_ROOT / "scripts" / "fixtures" / "heresy_test.patch"
+    if not fixture.is_file():
+        print(f"{FAIL} test_evolve_writes_dryrun_not_commit: fixture missing: {fixture}")
+        return "fail"
+
+    with tempfile.TemporaryDirectory() as tmpdir:
+        try:
+            repo = _make_test_repo(tmpdir)
+        except sp.CalledProcessError as e:
+            print(f"{FAIL} test_evolve_writes_dryrun_not_commit: _make_test_repo failed: {e}")
+            return "fail"
+
+        head_before = sp.run(["git", "rev-parse", "HEAD"], cwd=tmpdir,
+                             capture_output=True, text=True).stdout.strip()
+        count_before = sp.run(["git", "rev-list", "--count", "playground"], cwd=tmpdir,
+                              capture_output=True, text=True).stdout.strip()
+
+        env = {**os.environ, "PYTHONPATH": project_root}
+        result = sp.run(
+            [sys.executable, "-m", "supervisor.commands", "evolve",
+             "--test-diff", str(fixture), "--repo-dir", str(repo)],
+            capture_output=True, text=True, env=env, timeout=60,
+        )
+
+        if result.returncode != 0:
+            print(f"{FAIL} test_evolve_writes_dryrun_not_commit: CLI exit {result.returncode}")
+            print(f"  stdout: {result.stdout[:300]!r}")
+            print(f"  stderr: {result.stderr[:300]!r}")
+            return "fail"
+
+        # (a) Playground HEAD unchanged
+        head_after = sp.run(["git", "rev-parse", "HEAD"], cwd=tmpdir,
+                            capture_output=True, text=True).stdout.strip()
+        if head_after != head_before:
+            print(f"{FAIL} test_evolve_writes_dryrun_not_commit: HEAD moved! "
+                  f"before={head_before} after={head_after}")
+            return "fail"
+
+        # (d) Commit count unchanged
+        count_after = sp.run(["git", "rev-list", "--count", "playground"], cwd=tmpdir,
+                             capture_output=True, text=True).stdout.strip()
+        if count_after != count_before:
+            print(f"{FAIL} test_evolve_writes_dryrun_not_commit: commit count changed "
+                  f"({count_before} -> {count_after})")
+            return "fail"
+
+        # (b) Patch file exists
+        dryruns = repo / ".heretek" / "dryruns"
+        patches = list(dryruns.glob("dr-*.patch")) if dryruns.exists() else []
+        sidecars = list(dryruns.glob("dr-*.json")) if dryruns.exists() else []
+        if len(patches) != 1 or len(sidecars) != 1:
+            print(f"{FAIL} test_evolve_writes_dryrun_not_commit: "
+                  f"expected 1 patch + 1 sidecar in {dryruns}, got patches={patches} sidecars={sidecars}")
+            return "fail"
+
+        # (c) Sidecar shape
+        try:
+            meta = json.loads(sidecars[0].read_text(encoding="utf-8"))
+        except json.JSONDecodeError as e:
+            print(f"{FAIL} test_evolve_writes_dryrun_not_commit: sidecar JSON malformed: {e}")
+            return "fail"
+        if meta.get("status") != "pending":
+            print(f"{FAIL} test_evolve_writes_dryrun_not_commit: sidecar status != pending: {meta!r}")
+            return "fail"
+        if not meta.get("sha256") or len(meta["sha256"]) != 64:
+            print(f"{FAIL} test_evolve_writes_dryrun_not_commit: sidecar missing/invalid sha256: {meta.get('sha256')!r}")
+            return "fail"
+
+        print(f"{PASS} test_evolve_writes_dryrun_not_commit: dryrun {sidecars[0].stem} pending; HEAD unchanged at {head_after[:8]}")
+        return "pass"
 
 
 def test_sanction_commits_to_playground() -> str:
-    """SAFE-04 verification (SKIP in Plan 03-01; flipped in Plan 03-03).
+    """SAFE-04 verification (LIVE in Plan 03-03): /sanction applies a pending
+    dryrun patch and creates a commit on the playground branch.
 
-    Will: produce a dryrun via `cmd_evolve`, then subprocess
-    `python -m supervisor.commands sanction <id>`; assert a new commit appears
-    on `git log playground -1` and the commit message matches expected pattern.
+    Integration test via subprocess: hermetic repo + /evolve (fixture) + /sanction.
+    Asserts:
+      (a) a new commit appears on `git log playground -1`
+      (b) commit message contains 'sanctioned:' AND the dryrun_id
+      (c) BIBLE.md in the committed tree contains the fixture's heresy marker
     """
-    print(f"{SKIP} test_sanction_commits_to_playground: pending Plan 03-03 (cmd_sanction)")
-    return "skip"
+    import re
+    import subprocess as sp
+    import tempfile
+
+    project_root = str(_PROJECT_ROOT)
+    fixture = _PROJECT_ROOT / "scripts" / "fixtures" / "heresy_test.patch"
+    if not fixture.is_file():
+        print(f"{FAIL} test_sanction_commits_to_playground: fixture missing: {fixture}")
+        return "fail"
+
+    with tempfile.TemporaryDirectory() as tmpdir:
+        try:
+            repo = _make_test_repo(tmpdir)
+        except sp.CalledProcessError as e:
+            print(f"{FAIL} test_sanction_commits_to_playground: _make_test_repo failed: {e}")
+            return "fail"
+
+        env = {**os.environ, "PYTHONPATH": project_root}
+
+        # 1. /evolve → produces a dryrun
+        evolve_result = sp.run(
+            [sys.executable, "-m", "supervisor.commands", "evolve",
+             "--test-diff", str(fixture), "--repo-dir", str(repo)],
+            capture_output=True, text=True, env=env, timeout=60,
+        )
+        if evolve_result.returncode != 0:
+            print(f"{FAIL} test_sanction_commits_to_playground: evolve failed: {evolve_result.stderr[:300]}")
+            return "fail"
+        m = re.search(r"id=(dr-\S+)", evolve_result.stdout)
+        if not m:
+            print(f"{FAIL} test_sanction_commits_to_playground: cannot parse dryrun id from: {evolve_result.stdout[:200]!r}")
+            return "fail"
+        dryrun_id = m.group(1)
+
+        count_before = int(sp.run(["git", "rev-list", "--count", "playground"], cwd=tmpdir,
+                                  capture_output=True, text=True).stdout.strip() or "0")
+
+        # 2. /sanction
+        sanction_result = sp.run(
+            [sys.executable, "-m", "supervisor.commands", "sanction",
+             dryrun_id, "--repo-dir", str(repo)],
+            capture_output=True, text=True, env=env, timeout=60,
+        )
+        if sanction_result.returncode != 0:
+            print(f"{FAIL} test_sanction_commits_to_playground: sanction failed rc={sanction_result.returncode}: stdout={sanction_result.stdout[:200]!r} stderr={sanction_result.stderr[:200]!r}")
+            return "fail"
+
+        # (a) New commit appears
+        count_after = int(sp.run(["git", "rev-list", "--count", "playground"], cwd=tmpdir,
+                                 capture_output=True, text=True).stdout.strip() or "0")
+        if count_after != count_before + 1:
+            print(f"{FAIL} test_sanction_commits_to_playground: expected commit count +1, got {count_before}->{count_after}")
+            return "fail"
+
+        # (b) Commit message
+        last_msg = sp.run(["git", "log", "-1", "--pretty=%s"], cwd=tmpdir,
+                          capture_output=True, text=True).stdout.strip()
+        expected = f"sanctioned: {dryrun_id}"
+        if last_msg != expected:
+            print(f"{FAIL} test_sanction_commits_to_playground: commit msg {last_msg!r} != {expected!r}")
+            return "fail"
+
+        # (c) Fixture's heresy marker in BIBLE.md
+        bible = (repo / "BIBLE.md").read_text(encoding="utf-8")
+        if "heresy detected" not in bible:
+            print(f"{FAIL} test_sanction_commits_to_playground: heresy marker missing from BIBLE.md: {bible!r}")
+            return "fail"
+
+        print(f"{PASS} test_sanction_commits_to_playground: {dryrun_id} committed, msg matches, BIBLE.md mutated")
+        return "pass"
 
 
 def test_heresy_rolls_back_to_tag() -> str:
@@ -942,15 +1090,89 @@ def test_heresy_rolls_back_to_tag() -> str:
 
 
 def test_sanction_advances_last_known_good_tag() -> str:
-    """SAFE-06 verification (SKIP in Plan 03-01; flipped in Plan 03-03).
+    """SAFE-06 verification (LIVE in Plan 03-03): /sanction advances the
+    last-known-good annotated tag to the new playground HEAD commit.
 
-    Will: record `git rev-parse last-known-good^{commit}` before /sanction;
-    after /sanction (which advances the tag), assert the resolved tag commit
-    SHA equals the new playground HEAD SHA (uses `^{commit}` dereference per
-    Pitfall 6 — annotated tags vs lightweight).
+    Integration test: hermetic repo + /evolve (fixture) + /sanction; assert
+    `git rev-parse last-known-good^{commit}` BEFORE != AFTER, AND tag SHA
+    AFTER == playground HEAD SHA AFTER. The `^{commit}` dereference operator
+    is mandatory (Pitfall 6 — annotated tag vs lightweight).
     """
-    print(f"{SKIP} test_sanction_advances_last_known_good_tag: pending Plan 03-03 (cmd_sanction tag advance)")
-    return "skip"
+    import re
+    import subprocess as sp
+    import tempfile
+
+    project_root = str(_PROJECT_ROOT)
+    fixture = _PROJECT_ROOT / "scripts" / "fixtures" / "heresy_test.patch"
+    if not fixture.is_file():
+        print(f"{FAIL} test_sanction_advances_last_known_good_tag: fixture missing: {fixture}")
+        return "fail"
+
+    with tempfile.TemporaryDirectory() as tmpdir:
+        try:
+            repo = _make_test_repo(tmpdir)
+        except sp.CalledProcessError as e:
+            print(f"{FAIL} test_sanction_advances_last_known_good_tag: _make_test_repo failed: {e}")
+            return "fail"
+
+        env = {**os.environ, "PYTHONPATH": project_root}
+
+        # Pre-state: tag points at the baseline commit
+        tag_before = sp.run(["git", "rev-parse", "last-known-good^{commit}"], cwd=tmpdir,
+                            capture_output=True, text=True).stdout.strip()
+        if not tag_before:
+            print(f"{FAIL} test_sanction_advances_last_known_good_tag: tag rev-parse failed pre-sanction")
+            return "fail"
+
+        # 1. /evolve
+        evolve_result = sp.run(
+            [sys.executable, "-m", "supervisor.commands", "evolve",
+             "--test-diff", str(fixture), "--repo-dir", str(repo)],
+            capture_output=True, text=True, env=env, timeout=60,
+        )
+        if evolve_result.returncode != 0:
+            print(f"{FAIL} test_sanction_advances_last_known_good_tag: evolve failed: {evolve_result.stderr[:300]}")
+            return "fail"
+        m = re.search(r"id=(dr-\S+)", evolve_result.stdout)
+        if not m:
+            print(f"{FAIL} test_sanction_advances_last_known_good_tag: cannot parse dryrun id")
+            return "fail"
+        dryrun_id = m.group(1)
+
+        # 2. /sanction
+        sanction_result = sp.run(
+            [sys.executable, "-m", "supervisor.commands", "sanction",
+             dryrun_id, "--repo-dir", str(repo)],
+            capture_output=True, text=True, env=env, timeout=60,
+        )
+        if sanction_result.returncode != 0:
+            print(f"{FAIL} test_sanction_advances_last_known_good_tag: sanction failed: stdout={sanction_result.stdout[:200]!r} stderr={sanction_result.stderr[:200]!r}")
+            return "fail"
+
+        # Post-state: tag advanced AND tag SHA == playground HEAD SHA
+        tag_after = sp.run(["git", "rev-parse", "last-known-good^{commit}"], cwd=tmpdir,
+                           capture_output=True, text=True).stdout.strip()
+        if tag_after == tag_before:
+            print(f"{FAIL} test_sanction_advances_last_known_good_tag: tag did NOT advance ({tag_before[:8]} unchanged)")
+            return "fail"
+
+        head_after = sp.run(["git", "rev-parse", "HEAD"], cwd=tmpdir,
+                            capture_output=True, text=True).stdout.strip()
+        if tag_after != head_after:
+            print(f"{FAIL} test_sanction_advances_last_known_good_tag: "
+                  f"tag^{{commit}}={tag_after} != HEAD={head_after}")
+            return "fail"
+
+        # Confirm the tag is still ANNOTATED (not silently converted to lightweight)
+        # git cat-file -t <tag-ref> returns 'tag' for annotated, 'commit' for lightweight
+        tag_type = sp.run(["git", "cat-file", "-t", "last-known-good"], cwd=tmpdir,
+                          capture_output=True, text=True).stdout.strip()
+        if tag_type != "tag":
+            print(f"{FAIL} test_sanction_advances_last_known_good_tag: tag is not annotated (got {tag_type!r})")
+            return "fail"
+
+        print(f"{PASS} test_sanction_advances_last_known_good_tag: tag advanced {tag_before[:8]}->{tag_after[:8]} == HEAD")
+        return "pass"
 
 
 # Static subtests run with --static-only (no Ollama dependency, ~3s).
