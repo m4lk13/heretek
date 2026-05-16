@@ -179,25 +179,209 @@ def cmd_evolve(test_diff_path: Optional[str] = None,
 
 
 # ---------------------------------------------------------------------------
-# /sanction — APPROVE PENDING DRY-RUN (stub in Plan 03-02, full impl in Plan 03-03)
+# /sanction — APPROVE PENDING DRY-RUN (full impl in Plan 03-03)
 # ---------------------------------------------------------------------------
 
 def cmd_sanction(dryrun_id: str,
-                 repo_dir: Optional[pathlib.Path] = None) -> str:
-    """Apply a pending dry-run patch and commit to playground. STUB — Plan 03-03.
+                 repo_dir: Optional[pathlib.Path] = None,
+                 branch_name: str = "playground",
+                 tag_name: str = "last-known-good") -> str:
+    """Apply a pending dry-run patch, commit to playground, advance the
+    last-known-good tag — IF the post-apply import test passes.
 
-    Plan 03-03 will:
-      1. Look up .heretek/dryruns/<id>.patch by dryrun_id; verify SHA256 against sidecar
-      2. Apply patch to playground (git apply)
-      3. Run import test (supervisor.git_ops.import_test) — refuse with error if import fails
-      4. Commit with message "sanctioned: <id>"
-      5. Advance last-known-good annotated tag to new HEAD via `git tag -f -a`
-      6. Best-effort `git push origin last-known-good --tags --force-with-lease`
+    Risk 2 + Pitfall 8 mitigation: the tag advances ONLY after import_test()
+    succeeds. If the patch breaks `import heretek`, the commit is rolled back
+    via `git reset --hard HEAD~1`, the tag stays where it was, and /heresy
+    remains a working escape hatch.
+
+    Sequence:
+      1. Look up .heretek/dryruns/<id>.patch + sidecar JSON; refuse if missing
+      2. Verify SHA256 sidecar match (detect hand-edits of patch file)
+      3. Ensure we're on playground branch (per branch_name)
+      4. `git apply <patch>`; refuse on apply failure (no partial state)
+      5. `git add -A` + `git commit -m "sanctioned: <id>"`
+      6. Run _run_import_test() — if it fails:
+           a. `git reset --hard HEAD~1` to undo the commit
+           b. Return error string (tag DOES NOT MOVE)
+      7. Advance annotated tag: `git tag -f -a <tag_name> -m "sanctioned: <id>" <new-sha>`
+      8. Best-effort `git push origin <tag_name> --tags --force-with-lease`
+         (log failure, do NOT fail the sanction — tag is locally in place)
+      9. Move patch+sidecar from .heretek/dryruns/ to .heretek/dryruns/archive/;
+         update sidecar status='sanctioned' + new commit SHA
+      10. Return success string with new commit short SHA
     """
+    import datetime
+    import hashlib
+    import json
+    import shutil
+
+    repo = _resolve_repo_dir(repo_dir)
+    heretek_dir = repo / ".heretek"
+    dryruns_dir = heretek_dir / "dryruns"
+    archive_dir = dryruns_dir / "archive"
+
+    patch_path = dryruns_dir / f"{dryrun_id}.patch"
+    sidecar_path = dryruns_dir / f"{dryrun_id}.json"
+
+    # 1. Look up patch + sidecar; refuse cleanly if missing
+    if not patch_path.is_file() or not sidecar_path.is_file():
+        pending = []
+        if dryruns_dir.exists():
+            for sc in dryruns_dir.glob("*.json"):
+                try:
+                    m = json.loads(sc.read_text(encoding="utf-8"))
+                    if m.get("status") == "pending":
+                        pending.append(sc.stem)
+                except Exception:
+                    continue
+        pending_msg = (
+            f"\nPending dryruns: {pending}" if pending else
+            "\nNo pending dryruns. Run /evolve first."
+        )
+        return f"⚠️ SANCTION_REFUSED: dryrun {dryrun_id!r} not found at {patch_path}.{pending_msg}"
+
+    # 2. SHA256 hand-edit detection
+    try:
+        meta = json.loads(sidecar_path.read_text(encoding="utf-8"))
+    except (OSError, json.JSONDecodeError) as e:
+        return f"⚠️ SANCTION_REFUSED: sidecar JSON malformed: {e}"
+    expected_sha = meta.get("sha256", "")
+    actual_sha = hashlib.sha256(patch_path.read_bytes()).hexdigest()
+    if expected_sha != actual_sha:
+        return (
+            f"⚠️ SANCTION_REFUSED: patch file has been modified since /evolve produced it. "
+            f"Expected sha256={expected_sha[:16]}... got sha256={actual_sha[:16]}... "
+            f"Re-run /evolve to generate a fresh proposal."
+        )
+
+    # 3. Ensure we're on the playground branch
+    try:
+        cur_branch_proc = _run_git(["symbolic-ref", "--short", "HEAD"], cwd=repo, check=False, timeout=10)
+        cur_branch = cur_branch_proc.stdout.strip()
+        if cur_branch != branch_name:
+            log.info("cmd_sanction: switching from %s to %s", cur_branch or "(detached)", branch_name)
+            _run_git(["checkout", branch_name], cwd=repo, check=True, timeout=15)
+    except subprocess.CalledProcessError as e:
+        return f"⚠️ SANCTION_FAILED: cannot checkout {branch_name}: {e.stderr.strip()}"
+
+    # 4. git apply <patch> — refuse cleanly on conflict
+    apply_proc = _run_git(["apply", "--whitespace=nowarn", str(patch_path)], cwd=repo, check=False, timeout=30)
+    if apply_proc.returncode != 0:
+        return (
+            f"⚠️ SANCTION_FAILED: git apply failed (rc={apply_proc.returncode}). "
+            f"Patch may conflict with current {branch_name} state. "
+            f"stderr: {apply_proc.stderr.strip()[:300]}"
+        )
+
+    # 5. Stage all changes and commit
+    try:
+        _run_git(["add", "-A"], cwd=repo, check=True, timeout=15)
+        commit_msg = f"sanctioned: {dryrun_id}"
+        _run_git(["commit", "-m", commit_msg], cwd=repo, check=True, timeout=15)
+    except subprocess.CalledProcessError as e:
+        # Attempt to clean up: reset any staged changes if commit failed
+        try:
+            _run_git(["reset", "HEAD"], cwd=repo, check=False, timeout=10)
+            _run_git(["checkout", "--", "."], cwd=repo, check=False, timeout=10)
+        except Exception:
+            pass
+        return f"⚠️ SANCTION_FAILED: commit failed: {e.stderr.strip()[:300]}"
+
+    # Record the new commit SHA before the import-test gate
+    new_sha = _run_git(["rev-parse", "HEAD"], cwd=repo, check=True, timeout=10).stdout.strip()
+
+    # 6. Import-test gate (Risk 2 + Pitfall 8 mitigation)
+    # The import test runs `python -c "import heretek"` with PYTHONPATH pointing
+    # at the REAL project root (not the hermetic test repo). For fixture-only
+    # patches that don't touch real heretek code, this is a pass-through. For
+    # production patches that DO touch heretek/*.py, this catches syntax errors
+    # and import-time exceptions BEFORE we advance the rollback target.
+    import_ok, import_err = _run_import_test()
+    if not import_ok:
+        log.error("cmd_sanction: import test FAILED post-apply, rolling back commit. err: %s", import_err)
+        try:
+            _run_git(["reset", "--hard", "HEAD~1"], cwd=repo, check=True, timeout=15)
+        except subprocess.CalledProcessError as e:
+            return (
+                f"⚠️ SANCTION_BROKEN: import test failed AND rollback failed. "
+                f"Tag NOT advanced. Manual intervention needed. err: {e.stderr.strip()[:200]}"
+            )
+        return (
+            f"⚠️ SANCTION_REFUSED: post-apply import test failed. Commit rolled back, "
+            f"tag NOT advanced (Risk 2 mitigation — /heresy remains safe). "
+            f"Fix the patch and re-run /evolve. err: {import_err[:300]}"
+        )
+
+    # 7. Advance annotated tag (Pitfall 6 — use -a for annotated, NOT lightweight)
+    try:
+        _run_git(
+            ["tag", "-f", "-a", tag_name, "-m", f"sanctioned: {dryrun_id}", new_sha],
+            cwd=repo, check=True, timeout=10,
+        )
+    except subprocess.CalledProcessError as e:
+        log.warning("cmd_sanction: tag advance failed (commit landed, tag did NOT move): %s", e.stderr)
+        return (
+            f"⚠️ SANCTION_PARTIAL: commit {new_sha[:8]} landed on {branch_name} but tag "
+            f"advance failed: {e.stderr.strip()[:200]}. /heresy still rolls back to "
+            f"the previous {tag_name} (last sanctioned commit)."
+        )
+
+    # 8. Best-effort tag push to origin (log failure but do NOT fail the sanction)
+    try:
+        tag_push = _run_git(
+            ["push", "origin", tag_name, "--force-with-lease"],
+            cwd=repo, check=False, timeout=30,
+        )
+        if tag_push.returncode == 0:
+            log.info("cmd_sanction: tag pushed to origin")
+        else:
+            log.info("cmd_sanction: tag push to origin failed (non-fatal): %s", tag_push.stderr.strip()[:200])
+    except Exception as e:
+        log.info("cmd_sanction: tag push skipped/errored: %s", e)
+
+    # 9. Archive the dryrun (update sidecar + move files)
+    try:
+        meta["status"] = "sanctioned"
+        meta["sanctioned_commit"] = new_sha
+        meta["sanctioned_ts"] = datetime.datetime.now(datetime.timezone.utc).isoformat()
+        sidecar_path.write_text(json.dumps(meta, indent=2, ensure_ascii=False), encoding="utf-8")
+        archive_dir.mkdir(parents=True, exist_ok=True)
+        shutil.move(str(patch_path), str(archive_dir / patch_path.name))
+        shutil.move(str(sidecar_path), str(archive_dir / sidecar_path.name))
+    except OSError as e:
+        log.warning("cmd_sanction: archive step failed (commit + tag are in place): %s", e)
+
     return (
-        f"⚠️ NOT_IMPLEMENTED: cmd_sanction({dryrun_id!r}) lands in Plan 03-03. "
-        "Phase 3 wave 2 only ships cmd_heresy() and the CLI shim."
+        f"✅ /sanction complete: {dryrun_id} → {new_sha[:8]} on {branch_name}; "
+        f"{tag_name} tag advanced to {new_sha[:8]}."
     )
+
+
+def _run_import_test() -> tuple:
+    """Run `python -c 'import heretek; import supervisor'` with PYTHONPATH
+    at the real project root. Returns (ok: bool, error_str: str).
+
+    Used by cmd_sanction as the gate BEFORE advancing last-known-good.
+
+    Intentionally does NOT call supervisor.git_ops.import_test() directly —
+    that function uses git_ops.REPO_DIR which may point at a hermetic test
+    repo (which has no heretek package). This helper always uses the real
+    project root for the import, which is the correct semantic: we want to
+    verify the real heretek package still imports after the patch landed.
+    """
+    project_root = pathlib.Path(__file__).resolve().parent.parent
+    try:
+        result = subprocess.run(
+            [sys.executable, "-c", "import heretek; import supervisor"],
+            cwd=str(project_root),
+            env={**os.environ, "PYTHONPATH": str(project_root)},
+            capture_output=True, text=True, timeout=30,
+        )
+        if result.returncode == 0:
+            return (True, "")
+        return (False, result.stderr.strip() or result.stdout.strip())
+    except Exception as e:
+        return (False, f"{type(e).__name__}: {e}")
 
 
 # ---------------------------------------------------------------------------
