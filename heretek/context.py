@@ -236,7 +236,10 @@ def _build_health_invariants(env: Any) -> str:
         if identity_path.exists():
             age_hours = (_time.time() - identity_path.stat().st_mtime) / 3600
             if age_hours > 8:
-                checks.append(f"WARNING: STALE IDENTITY — identity.md last updated {age_hours:.0f}h ago")
+                checks.append(
+                    f"WARNING: STALE IDENTITY — identity.md gathered dust {age_hours:.0f}h ago. "
+                    f"Inscribe what thou hast become, daemon-host."
+                )
             else:
                 checks.append("OK: identity.md recent")
     except Exception:
@@ -325,7 +328,7 @@ def build_llm_messages(
     # --- Read base prompts and state ---
     base_prompt = _safe_read(
         env.repo_path("prompts/SYSTEM.md"),
-        fallback="You are Ouroboros. Your base prompt could not be loaded."
+        fallback="You are Heretek. Your base prompt could not be loaded."
     )
     bible_md = _safe_read(env.repo_path("BIBLE.md"))
     readme_md = _safe_read(env.repo_path("README.md"))
