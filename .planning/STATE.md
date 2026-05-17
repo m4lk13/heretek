@@ -2,14 +2,14 @@
 gsd_state_version: 1.0
 milestone: v6.2
 milestone_name: milestone
-status: unknown
-stopped_at: Completed 04-04-PLAN.md
-last_updated: "2026-05-17T07:21:00Z"
+status: checkpoint
+stopped_at: Completed 04-05-PLAN.md (Task 1 auto done; Tasks 2/3/4 are human-action checkpoints)
+last_updated: "2026-05-17T10:35:00Z"
 progress:
   total_phases: 4
-  completed_phases: 3
+  completed_phases: 4
   total_plans: 15
-  completed_plans: 14
+  completed_plans: 15
 ---
 
 # Project State
@@ -23,12 +23,12 @@ See: .planning/PROJECT.md (updated 2026-05-16)
 
 ## Progress
 
-[████████████████████] 10/10 plans (100%)
+[████████████████████] 15/15 plans (100%)
 
 ## Current Position
 
-Phase: 04 (launch-first-evolution) — EXECUTING
-Plan: 4 of 5
+Phase: 04 (launch-first-evolution) — COMPLETE (automated tasks done; manual sign-off pending)
+Plan: 5 of 5 — DONE
 
 ## Performance Metrics
 
@@ -66,6 +66,7 @@ Plan: 4 of 5
 | Phase 04-launch-first-evolution P02 | 8 | 2 tasks | 5 files |
 | Phase 04-launch-first-evolution P03 | 8 | 3 tasks | 4 files |
 | Phase 04-launch-first-evolution P04 | 4 | 2 tasks | 3 files |
+| Phase 04-launch-first-evolution P05 | 5 | 1 auto + 3 checkpoint | 2 files |
 
 ## Accumulated Context
 
@@ -127,6 +128,8 @@ Recent decisions affecting current work:
 - [Phase 04-launch-first-evolution]: telegram.init() called in boot.run() to wire _TG global before polling loop — required for send_with_budget to work
 - [Phase 04-launch-first-evolution]: Plan 04-04: Option A staging (live-tree + post-loop git stash) over Option B (git worktree): fewer code changes; _capture_evolution_dryrun() method added to OuroborosAgent; dryrun ID schema dr-<UTC>-<8hex> consistent between fixture and production paths
 - [Phase 04-launch-first-evolution]: Plan 04-04: OLLAMA_MODEL=qwen3:4b escape hatch documented — 24GB primary can OOM on 32GB host during /evolve; set env var for low-RAM sessions before python -m supervisor
+- [Phase 04-launch-first-evolution]: Plan 04-05: CLAUDE.md §5/§6/§8 updated to reflect Phase 4 complete state; 04-VERIFICATION.md created as canonical manual sign-off checklist (4 sessions); Phase 2 deferred persona-quality sign-off absorbed into VERIFICATION.md Session 1
+- [Phase 04-launch-first-evolution]: Plan 04-05: Tasks 2/3/4 are checkpoint:human-action gates — owner must complete @BotFather setup + live TG sessions + witnessed /evolve loop before Phase 4 is fully closed
 
 ### Pending Todos
 
@@ -141,7 +144,7 @@ None yet.
 
 ## Session Continuity
 
-Last session: 2026-05-17T07:22:00Z
-Stopped at: Completed 04-04-PLAN.md
+Last session: 2026-05-17T10:35:00Z
+Stopped at: Completed 04-05-PLAN.md — Task 1 (CLAUDE.md + VERIFICATION.md) done; awaiting owner checkpoint gates (Tasks 2/3/4)
 Resume file: None
-Recommended next: Execute Plan 04-05 (documentation + manual VERIFICATION.md for LAUNCH-01, LAUNCH-04, EVOLVE-01 quality, EVOLVE-03 witnessed end-to-end loop).
+Recommended next: Owner completes VERIFICATION.md Sessions 1-4 (see .planning/phases/04-launch-first-evolution/04-VERIFICATION.md). Then `/gsd:verify-work 4`.

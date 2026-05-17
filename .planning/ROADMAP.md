@@ -15,7 +15,7 @@ Decimal phases appear between their surrounding integers in numeric order.
 - [x] **Phase 1: Foundation + Local LLM** - Fork, rename, strip, and wire local Ollama inference; smoke-test bilingual output
 - [x] **Phase 2: Persona + Identity** - Author CODEX_HERETICUS.md and SYSTEM.md; prove the bot has a voice and persistent identity (manual persona-quality sign-off pending)
 - [x] **Phase 3: Self-Modify Guardrails** - Branch protection, dry-run gate, /sanction and /heresy commands wired and tested offline (completed 2026-05-16)
-- [ ] **Phase 4: Launch + First Evolution** - Deploy to private Telegram group; complete one full /evolve → diff → /sanction → playground-commit loop
+- [x] **Phase 4: Launch + First Evolution** - Deploy to private Telegram group; complete one full /evolve → diff → /sanction → playground-commit loop (automated tasks done; owner manual sign-off via VERIFICATION.md pending)
 
 ## Phase Details
 
@@ -62,9 +62,9 @@ Decimal phases appear between their surrounding integers in numeric order.
   5. `/heresy` reverts working tree to the `last-known-good` tag; `git status` shows clean tree at that tag afterward
   6. Daily (or per-session) auto-tag updates `last-known-good` to current `playground` HEAD
 **Plans**: 3 plans
-- [ ] 03-01-PLAN.md — Ship safe_push() chokepoint + ProtectedBranchError + PROTECTED_BRANCHES; rename branch defaults across git_ops.py/workers.py/agent.py (Phase 1 deferred carry); refactor 3 push sites; gitignore .heretek/; Wave 0 smoke scaffold (6 SAFE SKIP-stubs + _make_test_repo helper); flip 2 SAFE-01 stubs to live PASS
-- [ ] 03-02-PLAN.md — Create supervisor/commands.py (cmd_evolve/cmd_sanction stubs + cmd_heresy fully implemented); argparse CLI shim with --repo-dir; handle_slash_command stub in telegram.py; flip test_heresy_rolls_back_to_tag (SAFE-05) to live PASS
-- [ ] 03-03-PLAN.md — Implement cmd_evolve (dry-run pipeline with HERETEK_EVOLVE_TEST_DIFF fixture seam) and cmd_sanction (with import-test-gate BEFORE tag advance — Risk 2 mitigation); ship scripts/fixtures/heresy_test.patch; flip 3 SAFE SKIP-stubs (SAFE-02, SAFE-03, SAFE-04, SAFE-06) to live PASS — Phase 3 phase-gate GREEN at 11 pass / 0 fail / 0 skip
+- [x] 03-01-PLAN.md — Ship safe_push() chokepoint + ProtectedBranchError + PROTECTED_BRANCHES; rename branch defaults across git_ops.py/workers.py/agent.py (Phase 1 deferred carry); refactor 3 push sites; gitignore .heretek/; Wave 0 smoke scaffold (6 SAFE SKIP-stubs + _make_test_repo helper); flip 2 SAFE-01 stubs to live PASS
+- [x] 03-02-PLAN.md — Create supervisor/commands.py (cmd_evolve/cmd_sanction stubs + cmd_heresy fully implemented); argparse CLI shim with --repo-dir; handle_slash_command stub in telegram.py; flip test_heresy_rolls_back_to_tag (SAFE-05) to live PASS
+- [x] 03-03-PLAN.md — Implement cmd_evolve (dry-run pipeline with HERETEK_EVOLVE_TEST_DIFF fixture seam) and cmd_sanction (with import-test-gate BEFORE tag advance — Risk 2 mitigation); ship scripts/fixtures/heresy_test.patch; flip 3 SAFE SKIP-stubs (SAFE-02, SAFE-03, SAFE-04, SAFE-06) to live PASS — Phase 3 phase-gate GREEN at 11 pass / 0 fail / 0 skip
 
 ### Phase 4: Launch + First Evolution
 **Goal**: The bot is live in a private Telegram group, responds in-character to the owner, and has completed one witnessed end-to-end evolution cycle
@@ -77,11 +77,11 @@ Decimal phases appear between their surrounding integers in numeric order.
   4. `/evolve` in Telegram produces a diff message in the chat (dry-run) on `playground` — proposal is visible to the owner
   5. After owner sends `/sanction <hash>`, the commit appears on `playground` branch — full loop verified end-to-end
 **Plans**: 5 plans
-- [ ] 04-01-PLAN.md — Boot infrastructure scaffold + colab_launcher.py blocker fix + .gitignore + Wave 0 smoke harness (8 SKIP-stubs + _make_mock_tg_client + .env.example); flips test_env_fail_loud + test_dotenv_loaded to live PASS
-- [ ] 04-02-PLAN.md — {OWNER_HANDLE} template substitution in heretek/context.py + persona-doc placeholders; bilingual non-owner refusal with 24h rate-limit + defensive owner re-check in handle_slash_command; flips 2 SKIP-stubs to live PASS
-- [ ] 04-03-PLAN.md — supervisor/boot.py production boot sequence + TG long-poll loop + Layer 1 owner gate + consciousness daemon thread + workers.shutdown sentinel-task helper; flips 3 SKIP-stubs to live PASS
-- [ ] 04-04-PLAN.md — cmd_evolve production branch (enqueue evolution task) + agent.py evolution post-loop hook (git diff HEAD + stash + persist + emit, Option A staging); flips test_evolve_enqueues_task_when_no_fixture to live PASS
-- [ ] 04-05-PLAN.md — CLAUDE.md doc refresh + 04-VERIFICATION.md checklist + 3 blocking manual checkpoints (LAUNCH-01 @BotFather prereqs, Sessions 1-3, Session 4 witnessed /evolve loop)
+- [x] 04-01-PLAN.md — Boot infrastructure scaffold + colab_launcher.py blocker fix + .gitignore + Wave 0 smoke harness (8 SKIP-stubs + _make_mock_tg_client + .env.example); flips test_env_fail_loud + test_dotenv_loaded to live PASS
+- [x] 04-02-PLAN.md — {OWNER_HANDLE} template substitution in heretek/context.py + persona-doc placeholders; bilingual non-owner refusal with 24h rate-limit + defensive owner re-check in handle_slash_command; flips 2 SKIP-stubs to live PASS
+- [x] 04-03-PLAN.md — supervisor/boot.py production boot sequence + TG long-poll loop + Layer 1 owner gate + consciousness daemon thread + workers.shutdown sentinel-task helper; flips 3 SKIP-stubs to live PASS
+- [x] 04-04-PLAN.md — cmd_evolve production branch (enqueue evolution task) + agent.py evolution post-loop hook (git diff HEAD + stash + persist + emit, Option A staging); flips test_evolve_enqueues_task_when_no_fixture to live PASS
+- [x] 04-05-PLAN.md — CLAUDE.md doc refresh + 04-VERIFICATION.md checklist + 3 blocking manual checkpoints (LAUNCH-01 @BotFather prereqs, Sessions 1-3, Session 4 witnessed /evolve loop)
 
 ## Progress
 
@@ -93,4 +93,4 @@ Phases execute in numeric order: 1 → 2 → 3 → 4
 | 1. Foundation + Local LLM | 5/5 | Complete | 2026-05-15 |
 | 2. Persona + Identity | 2/2 | Complete | 2026-05-16 |
 | 3. Self-Modify Guardrails | 3/3 | Complete   | 2026-05-16 |
-| 4. Launch + First Evolution | 4/5 | In Progress|  |
+| 4. Launch + First Evolution | 5/5 | Automated done; owner sign-off pending | 2026-05-17 (automated) |
