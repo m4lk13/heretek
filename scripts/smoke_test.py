@@ -1346,13 +1346,80 @@ def test_dotenv_loaded() -> str:
 
 
 def test_owner_filter_rejects_stranger() -> str:
-    """LAUNCH-05 verification: mock TG dispatch with non-owner user_id triggers
-    the bilingual heretical refusal; second message within 24h gets silent drop.
+    """LAUNCH-05 verification: non-owner messages get bilingual refusal first,
+    silent drop on second within 24h, audit-logged either way.
+    handle_slash_command also defensively re-checks owner ID (Layer 2).
 
-    Owned by Plan 04-02. SKIP until that plan flips it.
+    Owned by Plan 04-02. Live PASS as of this task.
     """
-    print(f"{SKIP} test_owner_filter_rejects_stranger: deferred to Plan 04-02")
-    return "skip"
+    import importlib
+    with tempfile.TemporaryDirectory() as tmpdir:
+        drive_root = Path(tmpdir)
+        (drive_root / "logs").mkdir(parents=True, exist_ok=True)
+        (drive_root / "state").mkdir(parents=True, exist_ok=True)
+
+        # Set up DRIVE_ROOT so append_jsonl writes into our tempdir
+        from supervisor import state
+        state.init(drive_root=drive_root)
+        from supervisor import telegram as tg_mod
+        importlib.reload(tg_mod)
+
+        # Re-init DRIVE_ROOT in telegram module namespace after reload
+        tg_mod.DRIVE_ROOT = drive_root  # type: ignore[attr-defined]
+
+        # Owner = 12345; stranger = 99999
+        os.environ["HERETEK_OWNER_USER_ID"] = "12345"
+        try:
+            # Case 1: handle_non_owner_message returns refusal text on first contact
+            tg_mod._NON_OWNER_REFUSAL_TS.clear()
+            first = tg_mod.handle_non_owner_message(chat_id=-100, from_id=99999, tg_client=None)
+            if first is None or "Tech-Priest" not in first:
+                print(f"{FAIL} test_owner_filter_rejects_stranger: first contact "
+                      f"returned {first!r} (expected refusal containing 'Tech-Priest')")
+                return "fail"
+            if not _CYRILLIC_RE.search(first):
+                print(f"{FAIL} test_owner_filter_rejects_stranger: refusal missing "
+                      f"Cyrillic flavor; got {first!r}")
+                return "fail"
+
+            # Case 2: second contact within 24h → None (silent drop)
+            second = tg_mod.handle_non_owner_message(chat_id=-100, from_id=99999, tg_client=None)
+            if second is not None:
+                print(f"{FAIL} test_owner_filter_rejects_stranger: second contact "
+                      f"returned {second!r} (expected None — silent drop)")
+                return "fail"
+
+            # Case 3: handle_slash_command rejects non-owner user_id
+            rsp = tg_mod.handle_slash_command("/evolve", chat_id=-100, user_id=99999)
+            if rsp is None or "Tech-Priest" not in rsp:
+                print(f"{FAIL} test_owner_filter_rejects_stranger: handle_slash_command "
+                      f"with non-owner user_id returned {rsp!r} (expected refusal)")
+                return "fail"
+
+            # Case 4: audit log entries present in supervisor.jsonl
+            jsonl_path = drive_root / "logs" / "supervisor.jsonl"
+            if not jsonl_path.exists():
+                print(f"{FAIL} test_owner_filter_rejects_stranger: "
+                      f"audit log not created at {jsonl_path}")
+                return "fail"
+            content = jsonl_path.read_text(encoding="utf-8")
+            if "non_owner_refusal" not in content:
+                print(f"{FAIL} test_owner_filter_rejects_stranger: "
+                      f"audit log missing 'non_owner_refusal' entries; got: {content[:300]!r}")
+                return "fail"
+            if '"action": "refusal"' not in content:
+                print(f"{FAIL} test_owner_filter_rejects_stranger: "
+                      f"audit log missing action='refusal' entry")
+                return "fail"
+            if '"action": "silent_drop"' not in content:
+                print(f"{FAIL} test_owner_filter_rejects_stranger: "
+                      f"audit log missing action='silent_drop' entry")
+                return "fail"
+        finally:
+            os.environ.pop("HERETEK_OWNER_USER_ID", None)
+
+    print(f"{PASS} test_owner_filter_rejects_stranger: refusal + silent drop + audit log verified")
+    return "pass"
 
 
 def test_owner_handle_substitution() -> str:

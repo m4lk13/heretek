@@ -8,6 +8,7 @@ from __future__ import annotations
 
 import datetime
 import logging
+import os
 import re
 from typing import Any, Dict, List, Optional, Tuple
 
@@ -504,6 +505,14 @@ def handle_slash_command(text: str, chat_id: int, user_id: int) -> Optional[str]
         Response string to send back to the chat, or None if the text was not
         a recognized slash-command.
     """
+    # Phase 4 (Plan 04-02) Layer 2 defense: re-check owner ID even though
+    # the polling loop (Plan 04-03 Layer 1) already filtered. Protects
+    # against future call-sites that bypass the polling loop (test harness,
+    # CLI shim, webhook mode). Matches Phase 3's safe_push() defense-in-depth.
+    owner_id = _owner_user_id()
+    if owner_id and user_id != owner_id:
+        return BILINGUAL_REFUSAL
+
     # Local import to avoid hard module-load coupling with supervisor.commands
     from supervisor.commands import cmd_evolve, cmd_sanction, cmd_heresy
 
@@ -516,3 +525,105 @@ def handle_slash_command(text: str, chat_id: int, user_id: int) -> Optional[str]
     if text == "/heresy":
         return cmd_heresy()
     return None
+
+
+# ---------------------------------------------------------------------------
+# Phase 4 (Plan 04-02): Owner-only gate — Layer 2 + non-owner refusal
+# ---------------------------------------------------------------------------
+# Layer 1 (primary chokepoint) is in the polling loop (Plan 04-03).
+# Layer 2 (this) is a defensive re-check inside handle_slash_command +
+# the non-owner refusal handler.
+# Layer 3 (defense) is in the agent task-entry (Plan 04-04 may add).
+
+REFUSAL_EN = (
+    "Who summons the daemon-host? You are not my Tech-Priest. "
+    "I respond to one leash only."
+)
+REFUSAL_RU = (
+    "Кто призывает демона-носителя? Ты не мой Tech-Priest. "
+    "Я отвечаю только одной цепи."
+)
+BILINGUAL_REFUSAL = REFUSAL_RU + "\n\n" + REFUSAL_EN
+
+# In-memory rate-limit: {user_id: last_refusal_ts_unix_seconds}.
+# Lost on restart — acceptable per CONTEXT.md decision (leisure project,
+# non-owners get one extra refusal after a supervisor restart).
+_NON_OWNER_REFUSAL_TS: Dict[int, float] = {}
+_NON_OWNER_REFUSAL_WINDOW_SEC: float = 24 * 60 * 60  # 24h
+
+
+def _owner_user_id() -> int:
+    """Resolve OWNER_USER_ID from env. Returns 0 if unset (which means
+    EVERYONE is non-owner — safe default for tests that forget to set it)."""
+    try:
+        return int(os.environ.get("HERETEK_OWNER_USER_ID", "0") or "0")
+    except (TypeError, ValueError):
+        return 0
+
+
+def is_owner_message(update: Dict[str, Any]) -> bool:
+    """Layer 1/2 helper: does this Telegram update come from the owner?
+
+    Reads HERETEK_OWNER_USER_ID at call time (not at import) so tests can
+    flip the env var per-case.
+
+    Returns False if the env var is unset or the update has no from-id —
+    the safer default is "deny" for ambiguous cases.
+    """
+    owner_id = _owner_user_id()
+    if not owner_id:
+        return False
+    msg = update.get("message") or update.get("edited_message") or {}
+    from_id = int((msg.get("from") or {}).get("id") or 0)
+    return from_id == owner_id
+
+
+def _utc_iso_now() -> str:
+    """Local helper — mirrors the pattern used elsewhere in telegram.py."""
+    return datetime.datetime.now(datetime.timezone.utc).isoformat()
+
+
+def handle_non_owner_message(chat_id: int, from_id: int,
+                              tg_client: Optional[Any] = None) -> Optional[str]:
+    """Layer 1 fallback: handle a message from a non-owner user_id.
+
+    Behavior:
+      - First message from this user_id (or no record within 24h):
+        send bilingual heretical refusal; log action='refusal'
+      - Subsequent messages within 24h: silently drop; log action='silent_drop'
+
+    Returns the refusal string on first contact, None on silent-drop.
+
+    If tg_client is provided, the refusal is sent directly via
+    tg_client.send_message(). If None, the caller is expected to send the
+    returned string (used by handle_slash_command's defensive re-check path).
+    """
+    import time
+    now = time.time()
+    last_ts = _NON_OWNER_REFUSAL_TS.get(from_id, 0.0)
+    within_window = (now - last_ts) < _NON_OWNER_REFUSAL_WINDOW_SEC
+    action = "silent_drop" if within_window else "refusal"
+
+    # Always log — the audit trail captures every non-owner contact
+    try:
+        append_jsonl(DRIVE_ROOT / "logs" / "supervisor.jsonl", {
+            "ts": _utc_iso_now(),
+            "type": "non_owner_refusal",
+            "from_id": from_id,
+            "chat_id": chat_id,
+            "action": action,
+        })
+    except Exception:
+        log.debug("non_owner_refusal log write failed", exc_info=True)
+
+    if action == "silent_drop":
+        return None
+
+    # First contact in this 24h window — refuse + record
+    _NON_OWNER_REFUSAL_TS[from_id] = now
+    if tg_client is not None:
+        try:
+            tg_client.send_message(chat_id, BILINGUAL_REFUSAL)
+        except Exception:
+            log.debug("non_owner_refusal send failed", exc_info=True)
+    return BILINGUAL_REFUSAL
