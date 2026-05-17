@@ -139,6 +139,49 @@ def _get_chat_agent():
     return _chat_agent
 
 
+# Serializes concurrent direct-chat calls so two messages can't both hit the
+# 35B Ollama model at once and OOM the host. Combined with the
+# `_run_chat_direct_threaded` wrapper below, this means the polling loop
+# never blocks waiting for the LLM — it spawns a thread and returns.
+_CHAT_DIRECT_LOCK = threading.Lock()
+
+
+def run_chat_direct_threaded(chat_id: int, text: str,
+                              image_data: Optional[Union[Tuple[str, str], Tuple[str, str, str]]] = None) -> None:
+    """Dispatch ``handle_chat_direct`` on a daemon thread.
+
+    Previously the polling loop called ``handle_chat_direct`` synchronously,
+    so a single hung Ollama call (OOM, network stall, model deadlock) blocked
+    every subsequent Telegram update — the bot appeared to "go silent" after
+    one bad message. Threading lets the loop keep polling; the lock ensures
+    only one LLM call runs at a time.
+    """
+    def _target():
+        # Bounded acquire: if a previous LLM call is wedged past the httpx
+        # 300s read timeout and still holding the lock somehow (Ollama-side
+        # streaming keep-alive that resets the read timer; unknown library
+        # bug), don't pile up forever — drop the message with a notice so
+        # the user knows the bot is overloaded, not silent.
+        if not _CHAT_DIRECT_LOCK.acquire(timeout=420):
+            try:
+                from supervisor.telegram import get_tg
+                append_jsonl(DRIVE_ROOT / "logs" / "supervisor.jsonl", {
+                    "ts": datetime.datetime.now(datetime.timezone.utc).isoformat(),
+                    "type": "chat_direct_lock_timeout",
+                    "chat_id": chat_id, "text_preview": text[:80],
+                })
+                get_tg().send_message(chat_id,
+                    "⚠️ The daemon is busy with a prior incantation. Wait or restart the supervisor.")
+            except Exception:
+                log.debug("Suppressed exception", exc_info=True)
+            return
+        try:
+            handle_chat_direct(chat_id, text, image_data)
+        finally:
+            _CHAT_DIRECT_LOCK.release()
+    threading.Thread(target=_target, name=f"chat-direct-{chat_id}", daemon=True).start()
+
+
 def handle_chat_direct(chat_id: int, text: str, image_data: Optional[Union[Tuple[str, str], Tuple[str, str, str]]] = None) -> None:
     try:
         agent = _get_chat_agent()
@@ -275,11 +318,33 @@ def auto_resume_after_restart() -> None:
 # ---------------------------------------------------------------------------
 
 def worker_main(wid: int, in_q: Any, out_q: Any, repo_dir: str, drive_root: str) -> None:
+    import os as _os
     import sys as _sys
     import traceback as _tb
     import pathlib as _pathlib
     _sys.path.insert(0, repo_dir)
     _drive = _pathlib.Path(drive_root)
+    _repo = _pathlib.Path(repo_dir)
+    # spawn workers re-import all modules fresh and DO NOT inherit the
+    # state.init / git_ops.init that boot.py ran in the parent — so without
+    # this, state.DRIVE_ROOT stays at "/content/drive/MyDrive/Ouroboros" and
+    # git_ops.REPO_DIR at "/content/heretek_repo", causing subprocess.run to
+    # blow up with FileNotFoundError the first time the agent's startup
+    # auto-rescue runs git in the wrong cwd.
+    try:
+        from supervisor import state as _state_mod, git_ops as _gitops_mod
+        _state_mod.init(drive_root=_drive)
+        _gitops_mod.init(
+            repo_dir=_repo,
+            drive_root=_drive,
+            remote_url=_os.environ.get("HERETEK_REMOTE_URL", "") or "",
+            branch_dev=_os.environ.get("HERETEK_PLAYGROUND_BRANCH", "playground"),
+            branch_stable="last-known-good",
+        )
+    except Exception as _e:
+        _log_worker_crash(wid, _drive, "worker_init", _e, _tb.format_exc())
+        # init failure is fatal for this worker — agent would later blow up
+        return
     try:
         from heretek.agent import make_agent
         agent = make_agent(repo_dir=repo_dir, drive_root=drive_root, event_queue=out_q)

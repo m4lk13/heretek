@@ -308,7 +308,7 @@ def _dispatch_update(update: Dict[str, Any], tg: Any, data_root: Path) -> None:
         send_with_budget, handle_slash_command,
         is_owner_message, handle_non_owner_message,
     )
-    from supervisor.workers import handle_chat_direct
+    from supervisor.workers import run_chat_direct_threaded
 
     msg = update.get("message") or update.get("edited_message")
     if not msg:
@@ -347,4 +347,4 @@ def _dispatch_update(update: Dict[str, Any], tg: Any, data_root: Path) -> None:
             tg.send_chat_action(chat_id, "typing")
         except Exception:
             log.debug("dispatch: typing indicator failed", exc_info=True)
-        handle_chat_direct(chat_id, text)
+        run_chat_direct_threaded(chat_id, text)

@@ -118,10 +118,21 @@ class LLMClient:
             # "Server disconnected without sending a response." OLLAMA_BASE_URL
             # is always localhost (or a user-chosen local endpoint), so
             # bypassing env-discovered proxies is correct here.
+            # Explicit timeouts: without them, a hung Ollama (OOM, model
+            # deadlock) blocks the polling thread forever — the bot shows
+            # "typing" but never speaks. Read timeout must be generous enough
+            # for cold-loading the 35B model + long generations.
+            timeout = httpx.Timeout(
+                connect=10.0,
+                read=300.0,   # 5 min per chunk — covers cold model load
+                write=30.0,
+                pool=10.0,
+            )
             self._client = OpenAI(
                 base_url=self._base_url,
                 api_key=self._api_key,
-                http_client=httpx.Client(trust_env=False),
+                http_client=httpx.Client(trust_env=False, timeout=timeout),
+                timeout=timeout,
             )
         return self._client
 

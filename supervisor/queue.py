@@ -15,11 +15,22 @@ import time
 import uuid
 from typing import Any, Dict, List, Optional, Tuple
 
+from supervisor import state as _state
 from supervisor.state import (
     load_state, save_state, append_jsonl, atomic_write_text,
-    QUEUE_SNAPSHOT_PATH, budget_pct, TOTAL_BUDGET_LIMIT,
+    budget_pct, TOTAL_BUDGET_LIMIT,
     budget_remaining, EVOLUTION_BUDGET_RESERVE,
 )
+
+
+def _queue_snapshot_path() -> pathlib.Path:
+    """Read QUEUE_SNAPSHOT_PATH fresh from state each call.
+
+    A direct ``from supervisor.state import QUEUE_SNAPSHOT_PATH`` binds the
+    Colab default `/content/drive/MyDrive/Ouroboros/state/...` at import time
+    and never updates after ``state.init()`` reassigns the module global.
+    """
+    return _state.QUEUE_SNAPSHOT_PATH
 from supervisor.telegram import send_with_budget
 
 log = logging.getLogger(__name__)
@@ -156,7 +167,7 @@ def persist_queue_snapshot(reason: str = "") -> None:
         "pending": pending_rows, "running": running_rows,
     }
     try:
-        atomic_write_text(QUEUE_SNAPSHOT_PATH, json.dumps(payload, ensure_ascii=False, indent=2))
+        atomic_write_text(_queue_snapshot_path(), json.dumps(payload, ensure_ascii=False, indent=2))
     except Exception:
         log.warning("Failed to persist queue snapshot (reason=%s)", reason, exc_info=True)
         pass
@@ -179,9 +190,10 @@ def restore_pending_from_snapshot(max_age_sec: int = 900) -> int:
     if PENDING:
         return 0
     try:
-        if not QUEUE_SNAPSHOT_PATH.exists():
+        snap_path = _queue_snapshot_path()
+        if not snap_path.exists():
             return 0
-        snap = json.loads(QUEUE_SNAPSHOT_PATH.read_text(encoding="utf-8"))
+        snap = json.loads(snap_path.read_text(encoding="utf-8"))
         if not isinstance(snap, dict):
             return 0
         ts = str(snap.get("ts") or "")
