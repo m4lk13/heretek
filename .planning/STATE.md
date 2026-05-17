@@ -3,13 +3,13 @@ gsd_state_version: 1.0
 milestone: v6.2
 milestone_name: milestone
 status: unknown
-stopped_at: Completed 04-02-PLAN.md
-last_updated: "2026-05-17T06:57:12.003Z"
+stopped_at: Completed 04-03-PLAN.md
+last_updated: "2026-05-17T07:11:00.393Z"
 progress:
   total_phases: 4
   completed_phases: 3
   total_plans: 15
-  completed_plans: 12
+  completed_plans: 13
 ---
 
 # Project State
@@ -64,6 +64,7 @@ Plan: 2 of 5
 | Phase 03-self-modify-guardrails P03 | 5min | 4 tasks | 3 files |
 | Phase 04-launch-first-evolution P01 | 5 | 3 tasks | 5 files |
 | Phase 04-launch-first-evolution P02 | 8 | 2 tasks | 5 files |
+| Phase 04-launch-first-evolution P03 | 8 | 3 tasks | 4 files |
 
 ## Accumulated Context
 
@@ -120,6 +121,9 @@ Recent decisions affecting current work:
 - [Phase 04-launch-first-evolution]: HERETEK_OWNER_HANDLE optional with fallback 'my Tech-Priest' — different from HERETEK_OWNER_USER_ID which is fail-loud; persona fallback is safe and in-voice
 - [Phase 04-launch-first-evolution]: Non-owner refusal rate-limit is in-memory dict (lost on restart) — acceptable for leisure project; non-owners get one extra refusal after supervisor restart
 - [Phase 04-launch-first-evolution]: BILINGUAL_REFUSAL is a static string constant — no LLM call for non-owners; non-owners cannot drain Ollama by spamming
+- [Phase 04-launch-first-evolution]: __main__.py hard-imports boot (no try/except) — boot.py is no longer optional as of Plan 04-03
+- [Phase 04-launch-first-evolution]: test_env_fail_loud Case 4 accepts TimeoutExpired — post-Plan-03 the subprocess enters the actual polling loop; timeout = env validation passed = correct behavior
+- [Phase 04-launch-first-evolution]: telegram.init() called in boot.run() to wire _TG global before polling loop — required for send_with_budget to work
 
 ### Pending Todos
 
@@ -134,7 +138,7 @@ None yet.
 
 ## Session Continuity
 
-Last session: 2026-05-17T06:57:12.000Z
-Stopped at: Completed 04-02-PLAN.md
+Last session: 2026-05-17T07:11:00.390Z
+Stopped at: Completed 04-03-PLAN.md
 Resume file: None
 Recommended next: `/gsd:discuss-phase 4` (no CONTEXT.md yet) — gather context for launch-+-first-evolution before planning.

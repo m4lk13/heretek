@@ -45,13 +45,13 @@
 - [ ] **LAUNCH-01**: Register Telegram bot via @BotFather; create private group; add bot with owner-only membership
 - [x] **LAUNCH-02**: Hardcode owner Telegram user ID in `SYSTEM.md` (no first-sender-becomes-owner detection)
 - [x] **LAUNCH-03**: Environment variables loaded from gitignored `.env` via `python-dotenv` (TELEGRAM_BOT_TOKEN, HERETEK_OWNER_USER_ID, OLLAMA_*, HERETEK_*)
-- [ ] **LAUNCH-04**: Bot starts via `python -m supervisor`, connects to Telegram, listens to private group, responds with correct persona + language switching
+- [x] **LAUNCH-04**: Bot starts via `python -m supervisor`, connects to Telegram, listens to private group, responds with correct persona + language switching
 - [x] **LAUNCH-05**: Bot ignores messages from any non-owner Telegram user ID
 
 ### First Evolution Cycle (EVOLVE)
 
 - [ ] **EVOLVE-01**: `/evolve` command produces a coherent self-modification proposal (diff visible in Telegram, on `playground`, dry-run)
-- [ ] **EVOLVE-02**: Background consciousness loop (`heretek/consciousness.py`) runs continuously using the light model, throttled by the existing v6.2.0 circuit breaker (3 empty responses → pause)
+- [x] **EVOLVE-02**: Background consciousness loop (`heretek/consciousness.py`) runs continuously using the light model, throttled by the existing v6.2.0 circuit breaker (3 empty responses → pause)
 - [ ] **EVOLVE-03**: At least one full evolution loop completed end-to-end: `/evolve` → diff in TG → `/sanction <hash>` → commit visible on `playground`
 
 ## v2 Requirements
@@ -108,10 +108,10 @@ Populated by roadmapper. Each requirement maps to exactly one phase.
 | LAUNCH-01 | Phase 4 | Pending |
 | LAUNCH-02 | Phase 4 | Complete |
 | LAUNCH-03 | Phase 4 | Complete |
-| LAUNCH-04 | Phase 4 | Pending |
+| LAUNCH-04 | Phase 4 | Complete |
 | LAUNCH-05 | Phase 4 | Complete |
 | EVOLVE-01 | Phase 4 | Pending |
-| EVOLVE-02 | Phase 4 | Pending |
+| EVOLVE-02 | Phase 4 | Complete |
 | EVOLVE-03 | Phase 4 | Pending |
 
 **Coverage:**
