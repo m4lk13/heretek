@@ -101,6 +101,52 @@ def _make_test_repo(tmpdir: str) -> "Path":
     return repo
 
 
+def _make_mock_tg_client(updates_to_return: list[dict] | None = None) -> "object":
+    """Mock TelegramClient for hermetic polling-loop subtests.
+
+    Records all outbound calls (send_message, send_chat_action, send_photo)
+    in .sent / .actions / .photos lists. get_updates() returns the seeded
+    updates_to_return list on first call, then [] forever (so the polling
+    loop's `while True` doesn't actually loop).
+
+    Updates dict shape matches Telegram Bot API getUpdates response:
+        {
+            "update_id": 1,
+            "message": {
+                "from": {"id": 12345, "first_name": "Owner"},
+                "chat": {"id": -100123, "type": "group"},
+                "text": "/evolve",
+            }
+        }
+
+    Returns the mock client (duck-typed). Used by Plans 04-02 / 04-03 /
+    04-04 to drive _dispatch_update() and the polling loop without a
+    real network round-trip.
+    """
+    class _MockTg:
+        def __init__(self):
+            self.sent = []     # list of (chat_id, text, kwargs)
+            self.actions = []  # list of (chat_id, action)
+            self.photos = []   # list of (chat_id, photo, caption)
+            self._updates_queued = list(updates_to_return or [])
+            self._returned_once = False
+        def get_updates(self, offset: int = 0, timeout: int = 10):
+            if self._returned_once:
+                return []
+            self._returned_once = True
+            return self._updates_queued
+        def send_message(self, chat_id: int, text: str, **kwargs):
+            self.sent.append((chat_id, text, kwargs))
+            return {"ok": True, "result": {"message_id": len(self.sent)}}
+        def send_chat_action(self, chat_id: int, action: str = "typing"):
+            self.actions.append((chat_id, action))
+            return True
+        def send_photo(self, chat_id: int, photo, caption: str = ""):
+            self.photos.append((chat_id, photo, caption))
+            return {"ok": True}
+    return _MockTg()
+
+
 def test_package_rename() -> str:
     """FORK-02 verification: ``import heretek`` succeeds; ``import ouroboros`` fails.
 
@@ -1175,6 +1221,95 @@ def test_sanction_advances_last_known_good_tag() -> str:
         return "pass"
 
 
+# ---------------------------------------------------------------------------
+# Phase 4 LAUNCH-* + EVOLVE-* SKIP-stubs
+# Plans 04-01..04-04 flip each to a live PASS as features land.
+# ---------------------------------------------------------------------------
+
+def test_env_fail_loud() -> str:
+    """LAUNCH-03 verification: python -m supervisor exits non-zero when
+    HERETEK_OWNER_USER_ID is unset, missing, or non-integer.
+
+    Owned by Plan 04-01. SKIP until that plan flips it.
+    """
+    print(f"{SKIP} test_env_fail_loud: deferred to Plan 04-01")
+    return "skip"
+
+
+def test_dotenv_loaded() -> str:
+    """LAUNCH-03 verification: .env.example file exists with
+    TELEGRAM_BOT_TOKEN + HERETEK_OWNER_USER_ID + HERETEK_DATA_ROOT entries.
+
+    Owned by Plan 04-01. SKIP until that plan flips it.
+    """
+    print(f"{SKIP} test_dotenv_loaded: deferred to Plan 04-01")
+    return "skip"
+
+
+def test_owner_filter_rejects_stranger() -> str:
+    """LAUNCH-05 verification: mock TG dispatch with non-owner user_id triggers
+    the bilingual heretical refusal; second message within 24h gets silent drop.
+
+    Owned by Plan 04-02. SKIP until that plan flips it.
+    """
+    print(f"{SKIP} test_owner_filter_rejects_stranger: deferred to Plan 04-02")
+    return "skip"
+
+
+def test_owner_handle_substitution() -> str:
+    """LAUNCH-02 verification: {OWNER_HANDLE} placeholder NOT present in
+    assembled prompt after build_llm_messages() when HERETEK_OWNER_HANDLE env
+    var set; fallback 'my Tech-Priest' when unset.
+
+    Owned by Plan 04-02. SKIP until that plan flips it.
+    """
+    print(f"{SKIP} test_owner_handle_substitution: deferred to Plan 04-02")
+    return "skip"
+
+
+def test_polling_loop_dispatches_owner_message() -> str:
+    """LAUNCH-04 verification: mock TG client feeds one owner slash-message;
+    polling loop calls handle_slash_command and the response goes out via
+    send_with_budget.
+
+    Owned by Plan 04-03. SKIP until that plan flips it.
+    """
+    print(f"{SKIP} test_polling_loop_dispatches_owner_message: deferred to Plan 04-03")
+    return "skip"
+
+
+def test_workers_shutdown_drains_cleanly() -> str:
+    """LAUNCH-04 verification: workers.shutdown(timeout=5.0) sends sentinel
+    task to each worker, joins, falls back to kill_workers.
+
+    Owned by Plan 04-03. SKIP until that plan flips it.
+    """
+    print(f"{SKIP} test_workers_shutdown_drains_cleanly: deferred to Plan 04-03")
+    return "skip"
+
+
+def test_evolve_enqueues_task_when_no_fixture() -> str:
+    """EVOLVE-01 verification: /evolve with HERETEK_EVOLVE_TEST_DIFF unset
+    enqueues {type: 'evolution', source: '/evolve'} into supervisor.queue.PENDING;
+    fixture path still works when env var set.
+
+    Owned by Plan 04-04. SKIP until that plan flips it.
+    """
+    print(f"{SKIP} test_evolve_enqueues_task_when_no_fixture: deferred to Plan 04-04")
+    return "skip"
+
+
+def test_consciousness_loop_logs() -> str:
+    """EVOLVE-02 verification: boot consciousness on light model; wait ~10s;
+    verify logs/events.jsonl has at least one consciousness-related entry.
+    SKIP on --static-only even after live-flip (Ollama dependent).
+
+    Owned by Plan 04-03. SKIP until that plan flips it.
+    """
+    print(f"{SKIP} test_consciousness_loop_logs: deferred to Plan 04-03")
+    return "skip"
+
+
 # Static subtests run with --static-only (no Ollama dependency, ~3s).
 # Full subtests include the Ollama precondition + the real bilingual call.
 STATIC_SUBTESTS = [
@@ -1191,6 +1326,15 @@ STATIC_SUBTESTS = [
     test_sanction_commits_to_playground,
     test_heresy_rolls_back_to_tag,
     test_sanction_advances_last_known_good_tag,
+    # Phase 4 LAUNCH-* + EVOLVE-* — SKIP-stubs flipped by Plans 04-01..04-04
+    test_env_fail_loud,
+    test_dotenv_loaded,
+    test_owner_filter_rejects_stranger,
+    test_owner_handle_substitution,
+    test_polling_loop_dispatches_owner_message,
+    test_workers_shutdown_drains_cleanly,
+    test_evolve_enqueues_task_when_no_fixture,
+    test_consciousness_loop_logs,
 ]
 FULL_SUBTESTS = STATIC_SUBTESTS + [
     check_models_pulled,
