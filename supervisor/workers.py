@@ -462,6 +462,55 @@ def kill_workers() -> None:
         )
 
 
+def shutdown(timeout: float = 5.0) -> None:
+    """Graceful worker drain — sentinel-task → join → kill_workers fallback.
+
+    Phase 4 (Plan 04-03) handler for SIGINT/SIGTERM. Sends a sentinel
+    {"type": "shutdown"} task to each worker's in_q (worker_main checks
+    for this at line 292 and breaks the loop). Joins each worker process
+    with the shared timeout budget. Any worker still alive at the end is
+    force-terminated via kill_workers().
+
+    Safer than kill_workers() alone — workers get a chance to flush their
+    current task's event_q output before exiting.
+    """
+    import time as _time
+    # Send sentinel to each worker
+    for w in list(WORKERS.values()):
+        try:
+            w.in_q.put({"type": "shutdown"})
+        except Exception:
+            log.debug("shutdown: failed to enqueue sentinel for wid=%s",
+                      getattr(w, "wid", "?"), exc_info=True)
+
+    # Join each worker with the shared timeout budget
+    deadline = _time.time() + max(0.5, float(timeout))
+    for w in list(WORKERS.values()):
+        remaining = max(0.1, deadline - _time.time())
+        try:
+            w.proc.join(timeout=remaining)
+        except Exception:
+            log.debug("shutdown: join failed for wid=%s",
+                      getattr(w, "wid", "?"), exc_info=True)
+
+    # Force-terminate any still-alive workers (kill_workers also clears WORKERS + RUNNING)
+    any_alive = any(w.proc.is_alive() for w in WORKERS.values())
+    if any_alive:
+        log.warning("shutdown: %d workers did not drain in %.1fs; force-terminating",
+                    sum(1 for w in WORKERS.values() if w.proc.is_alive()), timeout)
+    kill_workers()
+
+    append_jsonl(
+        DRIVE_ROOT / "logs" / "supervisor.jsonl",
+        {
+            "ts": datetime.datetime.now(datetime.timezone.utc).isoformat(),
+            "type": "workers_shutdown",
+            "graceful": not any_alive,
+            "timeout_sec": timeout,
+        },
+    )
+
+
 def respawn_worker(wid: int) -> None:
     global _LAST_SPAWN_TIME
     ctx = _get_ctx()

@@ -1507,13 +1507,64 @@ def test_polling_loop_dispatches_owner_message() -> str:
 
 
 def test_workers_shutdown_drains_cleanly() -> str:
-    """LAUNCH-04 verification: workers.shutdown(timeout=5.0) sends sentinel
-    task to each worker, joins, falls back to kill_workers.
+    """LAUNCH-04 verification: workers.shutdown(timeout) sends sentinel
+    tasks, joins worker processes, falls back to kill_workers on stragglers,
+    clears the WORKERS dict, logs the shutdown event.
 
-    Owned by Plan 04-03. SKIP until that plan flips it.
+    Owned by Plan 04-03. Live PASS as of this task.
+    Uses HERETEK_MAX_WORKERS=1 to keep the spawn cheap (real mp.Process).
     """
-    print(f"{SKIP} test_workers_shutdown_drains_cleanly: deferred to Plan 04-03")
-    return "skip"
+    import time
+    import importlib
+    with tempfile.TemporaryDirectory() as tmpdir:
+        drive_root = Path(tmpdir)
+        (drive_root / "logs").mkdir(parents=True, exist_ok=True)
+        (drive_root / "state").mkdir(parents=True, exist_ok=True)
+
+        from supervisor import state, workers
+        state.init(drive_root=drive_root)
+        importlib.reload(workers)
+        workers.init(
+            repo_dir=_PROJECT_ROOT,
+            drive_root=drive_root,
+            max_workers=1,
+            soft_timeout=60,
+            hard_timeout=120,
+            total_budget_limit=0.0,
+        )
+        workers.spawn_workers(n=1)
+        # Give the worker ~1.5s to fully boot (mp.Process spawn is slow on macOS)
+        time.sleep(1.5)
+        n_workers_before = len(workers.WORKERS)
+        if n_workers_before < 1:
+            print(f"{FAIL} test_workers_shutdown_drains_cleanly: worker didn't spawn "
+                  f"(WORKERS={n_workers_before})")
+            return "fail"
+
+        # Sentinel shutdown
+        t0 = time.time()
+        workers.shutdown(timeout=5.0)
+        elapsed = time.time() - t0
+        if elapsed > 7.0:
+            print(f"{FAIL} test_workers_shutdown_drains_cleanly: shutdown took {elapsed:.1f}s "
+                  f"(expected <7s with 5s timeout + 2s slack)")
+            return "fail"
+        n_workers_after = len(workers.WORKERS)
+        if n_workers_after != 0:
+            print(f"{FAIL} test_workers_shutdown_drains_cleanly: WORKERS not cleared "
+                  f"after shutdown (got {n_workers_after} remaining)")
+            return "fail"
+
+        # Audit log present
+        jsonl_path = drive_root / "logs" / "supervisor.jsonl"
+        content = jsonl_path.read_text(encoding="utf-8") if jsonl_path.exists() else ""
+        if "workers_shutdown" not in content:
+            print(f"{FAIL} test_workers_shutdown_drains_cleanly: audit log missing "
+                  f"'workers_shutdown' entry; got: {content[:300]!r}")
+            return "fail"
+
+    print(f"{PASS} test_workers_shutdown_drains_cleanly: sentinel + join + clear verified ({elapsed:.1f}s)")
+    return "pass"
 
 
 def test_evolve_enqueues_task_when_no_fixture() -> str:
