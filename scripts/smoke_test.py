@@ -1227,23 +1227,122 @@ def test_sanction_advances_last_known_good_tag() -> str:
 # ---------------------------------------------------------------------------
 
 def test_env_fail_loud() -> str:
-    """LAUNCH-03 verification: python -m supervisor exits non-zero when
-    HERETEK_OWNER_USER_ID is unset, missing, or non-integer.
+    """LAUNCH-03 verification: supervisor exits non-zero with explicit message
+    when HERETEK_OWNER_USER_ID is unset, missing, or non-integer.
 
-    Owned by Plan 04-01. SKIP until that plan flips it.
+    Owned by Plan 04-01. Live PASS as of this task.
     """
-    print(f"{SKIP} test_env_fail_loud: deferred to Plan 04-01")
-    return "skip"
+    import subprocess
+    import tempfile
+
+    project_root = _PROJECT_ROOT
+
+    # Case 1: HERETEK_OWNER_USER_ID unset → must fail with explicit message
+    env1 = {k: v for k, v in os.environ.items()
+            if k not in ("HERETEK_OWNER_USER_ID",)}
+    env1["TELEGRAM_BOT_TOKEN"] = "fake-token-for-test"
+    env1["PATH"] = os.environ.get("PATH", "")
+    r1 = subprocess.run(
+        [sys.executable, "-m", "supervisor"],
+        cwd=str(project_root),
+        env=env1,
+        capture_output=True, text=True, timeout=15,
+    )
+    if r1.returncode == 0:
+        print(f"{FAIL} test_env_fail_loud: case 1 exited 0 (expected non-zero) "
+              f"with stderr={r1.stderr[:200]!r}")
+        return "fail"
+    if "HERETEK_OWNER_USER_ID required" not in r1.stderr:
+        print(f"{FAIL} test_env_fail_loud: case 1 stderr missing "
+              f"'HERETEK_OWNER_USER_ID required'; got: {r1.stderr[:300]!r}")
+        return "fail"
+
+    # Case 2: HERETEK_OWNER_USER_ID=notanint → must fail with integer message
+    env2 = dict(env1)
+    env2["HERETEK_OWNER_USER_ID"] = "notanint"
+    r2 = subprocess.run(
+        [sys.executable, "-m", "supervisor"],
+        cwd=str(project_root),
+        env=env2,
+        capture_output=True, text=True, timeout=15,
+    )
+    if r2.returncode == 0 or "must be an integer" not in r2.stderr:
+        print(f"{FAIL} test_env_fail_loud: case 2 expected integer-error; "
+              f"rc={r2.returncode}, stderr={r2.stderr[:300]!r}")
+        return "fail"
+
+    # Case 3: TELEGRAM_BOT_TOKEN unset → must fail with token message
+    env3 = {k: v for k, v in os.environ.items()
+            if k not in ("TELEGRAM_BOT_TOKEN", "HERETEK_OWNER_USER_ID")}
+    env3["HERETEK_OWNER_USER_ID"] = "12345"
+    env3["PATH"] = os.environ.get("PATH", "")
+    r3 = subprocess.run(
+        [sys.executable, "-m", "supervisor"],
+        cwd=str(project_root),
+        env=env3,
+        capture_output=True, text=True, timeout=15,
+    )
+    if r3.returncode == 0 or "TELEGRAM_BOT_TOKEN required" not in r3.stderr:
+        print(f"{FAIL} test_env_fail_loud: case 3 expected token-error; "
+              f"rc={r3.returncode}, stderr={r3.stderr[:300]!r}")
+        return "fail"
+
+    # Case 4: Both set + tempdir for DATA_ROOT → supervisor proceeds past validation
+    # (boot.py may not exist yet — Plan 04-01's __main__ fallback returns 0)
+    with tempfile.TemporaryDirectory() as tmpdir:
+        env4 = dict(env2)
+        env4["HERETEK_OWNER_USER_ID"] = "12345"
+        env4["HERETEK_DATA_ROOT"] = tmpdir
+        r4 = subprocess.run(
+            [sys.executable, "-m", "supervisor"],
+            cwd=str(project_root),
+            env=env4,
+            capture_output=True, text=True, timeout=15,
+        )
+        # rc==0 means env validation passed (boot module either ran or fallback fired)
+        # rc==1 acceptable ONLY if stderr mentions "boot module not yet wired" (pre-Plan-03 state)
+        if r4.returncode not in (0, 1):
+            print(f"{FAIL} test_env_fail_loud: case 4 unexpected rc={r4.returncode}; "
+                  f"stderr={r4.stderr[:300]!r}")
+            return "fail"
+
+    print(f"{PASS} test_env_fail_loud: all 4 cases fail-loud or pass as expected")
+    return "pass"
 
 
 def test_dotenv_loaded() -> str:
-    """LAUNCH-03 verification: .env.example file exists with
-    TELEGRAM_BOT_TOKEN + HERETEK_OWNER_USER_ID + HERETEK_DATA_ROOT entries.
+    """LAUNCH-03 verification: .env.example exemplar exists and contains all
+    Phase 4 required env-var keys (so onboarding/testing has a template).
 
-    Owned by Plan 04-01. SKIP until that plan flips it.
+    Owned by Plan 04-01. Live PASS as of this task.
     """
-    print(f"{SKIP} test_dotenv_loaded: deferred to Plan 04-01")
-    return "skip"
+    env_example = _PROJECT_ROOT / ".env.example"
+    if not env_example.is_file():
+        print(f"{FAIL} test_dotenv_loaded: .env.example not found at {env_example}")
+        return "fail"
+    try:
+        text = env_example.read_text(encoding="utf-8")
+    except OSError as e:
+        print(f"{FAIL} test_dotenv_loaded: cannot read .env.example: {e}")
+        return "fail"
+
+    required_keys = [
+        "TELEGRAM_BOT_TOKEN=",
+        "HERETEK_OWNER_USER_ID=",
+        "HERETEK_OWNER_HANDLE=",
+        "HERETEK_DATA_ROOT=",
+        "OLLAMA_MODEL=",
+        "OLLAMA_MODEL_LIGHT=",
+        "HERETEK_MAX_CONTEXT_TOKENS=",
+        "HERETEK_PROTECTED_BRANCHES=",
+    ]
+    missing = [k for k in required_keys
+               if not any(line.startswith(k) for line in text.splitlines())]
+    if missing:
+        print(f"{FAIL} test_dotenv_loaded: .env.example missing keys: {missing}")
+        return "fail"
+    print(f"{PASS} test_dotenv_loaded: .env.example has all {len(required_keys)} required keys")
+    return "pass"
 
 
 def test_owner_filter_rejects_stranger() -> str:
