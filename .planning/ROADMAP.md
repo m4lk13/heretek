@@ -76,7 +76,12 @@ Decimal phases appear between their surrounding integers in numeric order.
   3. Background consciousness loop is running (light model qwen3:4b); it produces output visible in logs without being prompted
   4. `/evolve` in Telegram produces a diff message in the chat (dry-run) on `playground` — proposal is visible to the owner
   5. After owner sends `/sanction <hash>`, the commit appears on `playground` branch — full loop verified end-to-end
-**Plans**: TBD
+**Plans**: 5 plans
+- [ ] 04-01-PLAN.md — Boot infrastructure scaffold + colab_launcher.py blocker fix + .gitignore + Wave 0 smoke harness (8 SKIP-stubs + _make_mock_tg_client + .env.example); flips test_env_fail_loud + test_dotenv_loaded to live PASS
+- [ ] 04-02-PLAN.md — {OWNER_HANDLE} template substitution in heretek/context.py + persona-doc placeholders; bilingual non-owner refusal with 24h rate-limit + defensive owner re-check in handle_slash_command; flips 2 SKIP-stubs to live PASS
+- [ ] 04-03-PLAN.md — supervisor/boot.py production boot sequence + TG long-poll loop + Layer 1 owner gate + consciousness daemon thread + workers.shutdown sentinel-task helper; flips 3 SKIP-stubs to live PASS
+- [ ] 04-04-PLAN.md — cmd_evolve production branch (enqueue evolution task) + agent.py evolution post-loop hook (git diff HEAD + stash + persist + emit, Option A staging); flips test_evolve_enqueues_task_when_no_fixture to live PASS
+- [ ] 04-05-PLAN.md — CLAUDE.md doc refresh + 04-VERIFICATION.md checklist + 3 blocking manual checkpoints (LAUNCH-01 @BotFather prereqs, Sessions 1-3, Session 4 witnessed /evolve loop)
 
 ## Progress
 
@@ -88,4 +93,4 @@ Phases execute in numeric order: 1 → 2 → 3 → 4
 | 1. Foundation + Local LLM | 5/5 | Complete | 2026-05-15 |
 | 2. Persona + Identity | 2/2 | Complete | 2026-05-16 |
 | 3. Self-Modify Guardrails | 3/3 | Complete   | 2026-05-16 |
-| 4. Launch + First Evolution | 0/? | Not started | - |
+| 4. Launch + First Evolution | 1/5 | In Progress|  |
