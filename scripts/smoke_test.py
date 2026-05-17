@@ -1237,10 +1237,15 @@ def test_env_fail_loud() -> str:
 
     project_root = _PROJECT_ROOT
 
-    # Case 1: HERETEK_OWNER_USER_ID unset → must fail with explicit message
-    env1 = {k: v for k, v in os.environ.items()
-            if k not in ("HERETEK_OWNER_USER_ID",)}
+    # Case 1: HERETEK_OWNER_USER_ID unset → must fail with explicit message.
+    # Set the var to "" rather than removing it, because supervisor/__main__.py
+    # calls dotenv.load_dotenv() which DOES re-populate removed vars from the
+    # project's .env (post-Phase-4, .env contains real values for the live
+    # bot). dotenv defaults to override=False, so a pre-set empty value
+    # is preserved and _validate_required_env's .strip() check fails-loud.
+    env1 = dict(os.environ)
     env1["TELEGRAM_BOT_TOKEN"] = "fake-token-for-test"
+    env1["HERETEK_OWNER_USER_ID"] = ""
     env1["PATH"] = os.environ.get("PATH", "")
     r1 = subprocess.run(
         [sys.executable, "-m", "supervisor"],
@@ -1271,9 +1276,10 @@ def test_env_fail_loud() -> str:
               f"rc={r2.returncode}, stderr={r2.stderr[:300]!r}")
         return "fail"
 
-    # Case 3: TELEGRAM_BOT_TOKEN unset → must fail with token message
-    env3 = {k: v for k, v in os.environ.items()
-            if k not in ("TELEGRAM_BOT_TOKEN", "HERETEK_OWNER_USER_ID")}
+    # Case 3: TELEGRAM_BOT_TOKEN unset → must fail with token message.
+    # Same dotenv-no-override sidestep as Case 1: empty-string the var.
+    env3 = dict(os.environ)
+    env3["TELEGRAM_BOT_TOKEN"] = ""
     env3["HERETEK_OWNER_USER_ID"] = "12345"
     env3["PATH"] = os.environ.get("PATH", "")
     r3 = subprocess.run(
@@ -1855,6 +1861,95 @@ def test_consciousness_loop_logs() -> str:
     return "pass"
 
 
+def test_event_drainer_routes_send_message() -> str:
+    """Regression: supervisor/boot.py must drain workers.get_event_q() and
+    route each event through supervisor.events.dispatch_event. Phase 4 Plan
+    04-03 shipped without this drainer; bot typed (typing_start fires inline
+    in handle_chat_direct) but never replied (send_message events sat in the
+    queue forever). Fixed via _event_drainer_loop + _build_event_ctx in
+    boot.py; this test stops the regression from reoccurring.
+
+    Approach: feed a synthetic send_message event onto a real queue, run the
+    drainer for ~1s with a recording ctx, assert send_with_budget received
+    the call. No tmux, no TG, no LLM — pure in-process unit of the wire.
+    """
+    import queue as queue_mod
+    import threading
+    import time
+    import types
+
+    # 1. Import the drainer machinery from boot.py
+    try:
+        from supervisor.boot import _event_drainer_loop, _EVENT_DRAINER_STOP
+    except ImportError as e:
+        print(f"{FAIL} test_event_drainer_routes_send_message: cannot import "
+              f"_event_drainer_loop / _EVENT_DRAINER_STOP from supervisor.boot: {e}")
+        return "fail"
+
+    # 2. Build a minimal recording ctx — the only attrs send_message handler needs
+    recorded: list[dict] = []
+
+    def _record_send(chat_id, text, log_text=None, fmt="", is_progress=False):
+        recorded.append({
+            "chat_id": chat_id, "text": text, "log_text": log_text,
+            "fmt": fmt, "is_progress": is_progress,
+        })
+
+    with tempfile.TemporaryDirectory() as tmpdir:
+        drive_root = Path(tmpdir)
+        (drive_root / "logs").mkdir(parents=True, exist_ok=True)
+        from supervisor.state import append_jsonl as _append_jsonl
+        ctx = types.SimpleNamespace(
+            DRIVE_ROOT=drive_root,
+            send_with_budget=_record_send,
+            append_jsonl=_append_jsonl,
+        )
+
+        # 3. Run drainer in a thread; feed a synthetic event
+        event_q: "queue_mod.Queue[dict]" = queue_mod.Queue()
+        _EVENT_DRAINER_STOP.clear()
+        drainer = threading.Thread(
+            target=_event_drainer_loop,
+            args=(event_q, ctx),
+            name="event-drainer-test",
+            daemon=True,
+        )
+        drainer.start()
+        try:
+            event_q.put({
+                "type": "send_message",
+                "chat_id": 12345,
+                "text": "drainer wire test",
+            })
+            # Poll for delivery; the drainer has 0.5s queue.get timeout
+            deadline = time.time() + 3.0
+            while time.time() < deadline and not recorded:
+                time.sleep(0.1)
+        finally:
+            _EVENT_DRAINER_STOP.set()
+            drainer.join(timeout=2.0)
+
+        if drainer.is_alive():
+            print(f"{FAIL} test_event_drainer_routes_send_message: drainer thread "
+                  f"did not exit within 2s after _EVENT_DRAINER_STOP.set()")
+            return "fail"
+
+        if not recorded:
+            print(f"{FAIL} test_event_drainer_routes_send_message: no send_message "
+                  f"event reached send_with_budget within 3s; drainer wiring broken")
+            return "fail"
+
+        call = recorded[0]
+        if call["chat_id"] != 12345 or call["text"] != "drainer wire test":
+            print(f"{FAIL} test_event_drainer_routes_send_message: payload mismatch; "
+                  f"got {call!r}")
+            return "fail"
+
+    print(f"{PASS} test_event_drainer_routes_send_message: event_q → dispatch_event "
+          f"→ send_with_budget verified end-to-end")
+    return "pass"
+
+
 # Static subtests run with --static-only (no Ollama dependency, ~3s).
 # Full subtests include the Ollama precondition + the real bilingual call.
 STATIC_SUBTESTS = [
@@ -1880,6 +1975,9 @@ STATIC_SUBTESTS = [
     test_workers_shutdown_drains_cleanly,
     test_evolve_enqueues_task_when_no_fixture,
     test_consciousness_loop_logs,
+    # Phase 4 hotfix regression — boot.py drainer (Plan 04-03 shipped without it,
+    # caught at runtime during first live session, fixed post-hoc; this guards reoccurrence)
+    test_event_drainer_routes_send_message,
 ]
 FULL_SUBTESTS = STATIC_SUBTESTS + [
     check_models_pulled,
