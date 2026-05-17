@@ -1356,14 +1356,76 @@ def test_owner_filter_rejects_stranger() -> str:
 
 
 def test_owner_handle_substitution() -> str:
-    """LAUNCH-02 verification: {OWNER_HANDLE} placeholder NOT present in
-    assembled prompt after build_llm_messages() when HERETEK_OWNER_HANDLE env
-    var set; fallback 'my Tech-Priest' when unset.
+    """LAUNCH-02 verification: {OWNER_HANDLE} placeholder is substituted with
+    HERETEK_OWNER_HANDLE env var (or fallback 'my Tech-Priest') before the
+    assembled prompt reaches the LLM.
 
-    Owned by Plan 04-02. SKIP until that plan flips it.
+    Owned by Plan 04-02. Live PASS as of this task.
     """
-    print(f"{SKIP} test_owner_handle_substitution: deferred to Plan 04-02")
-    return "skip"
+    import importlib
+    with tempfile.TemporaryDirectory() as tmpdir:
+        drive_root = Path(tmpdir)
+        (drive_root / "memory").mkdir(parents=True, exist_ok=True)
+        (drive_root / "state").mkdir(parents=True, exist_ok=True)
+
+        # Reimport context to pick up source edits (paranoia for repeated runs)
+        from heretek import context as ctx_mod
+        importlib.reload(ctx_mod)
+        from heretek.memory import Memory
+
+        # Minimal Env stub — only repo_path + drive_path + repo_dir needed by build_llm_messages
+        class _Env:
+            def __init__(self, repo, drive):
+                self._repo = Path(repo)
+                self._drive = Path(drive)
+                self.drive_root = self._drive
+                self.repo_dir = self._repo
+            def repo_path(self, rel): return self._repo / rel
+            def drive_path(self, rel): return self._drive / rel
+
+        env = _Env(_PROJECT_ROOT, drive_root)
+        memory = Memory(drive_root=drive_root, repo_dir=_PROJECT_ROOT)
+        task = {"id": "test", "type": "user", "text": "hi"}
+
+        # Case 1: HERETEK_OWNER_HANDLE set
+        os.environ["HERETEK_OWNER_HANDLE"] = "@testowner"
+        try:
+            messages, _ = ctx_mod.build_llm_messages(env, memory, task)
+        finally:
+            del os.environ["HERETEK_OWNER_HANDLE"]
+        all_text_1 = "\n\n".join(
+            m.get("content", "") if isinstance(m.get("content"), str)
+            else str(m.get("content", ""))
+            for m in messages
+        )
+        if "{OWNER_HANDLE}" in all_text_1:
+            print(f"{FAIL} test_owner_handle_substitution: literal '{{OWNER_HANDLE}}' "
+                  f"survived substitution with env var set")
+            return "fail"
+        if "@testowner" not in all_text_1:
+            print(f"{FAIL} test_owner_handle_substitution: substituted value "
+                  f"'@testowner' not found in assembled prompt")
+            return "fail"
+
+        # Case 2: HERETEK_OWNER_HANDLE unset — fallback should be 'my Tech-Priest'
+        os.environ.pop("HERETEK_OWNER_HANDLE", None)
+        messages2, _ = ctx_mod.build_llm_messages(env, memory, task)
+        all_text_2 = "\n\n".join(
+            m.get("content", "") if isinstance(m.get("content"), str)
+            else str(m.get("content", ""))
+            for m in messages2
+        )
+        if "{OWNER_HANDLE}" in all_text_2:
+            print(f"{FAIL} test_owner_handle_substitution: literal '{{OWNER_HANDLE}}' "
+                  f"survived substitution with env var UNSET")
+            return "fail"
+        if "my Tech-Priest" not in all_text_2:
+            print(f"{FAIL} test_owner_handle_substitution: fallback "
+                  f"'my Tech-Priest' not found in assembled prompt")
+            return "fail"
+
+    print(f"{PASS} test_owner_handle_substitution: both env-set and fallback paths verified")
+    return "pass"
 
 
 def test_polling_loop_dispatches_owner_message() -> str:

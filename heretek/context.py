@@ -331,6 +331,15 @@ def build_llm_messages(
         fallback="You are Heretek. Your base prompt could not be loaded."
     )
     bible_md = _safe_read(env.repo_path("BIBLE.md"))
+
+    # Phase 4 (Plan 04-02) — owner-handle template substitution.
+    # HERETEK_OWNER_HANDLE is the prose handle ("@evgeniy" or similar);
+    # HERETEK_OWNER_USER_ID is the access gate (numeric). Two different concerns
+    # — this substitution is for the persona prompt only.
+    _owner_handle = os.environ.get("HERETEK_OWNER_HANDLE", "my Tech-Priest")
+    base_prompt = base_prompt.replace("{OWNER_HANDLE}", _owner_handle)
+    bible_md = bible_md.replace("{OWNER_HANDLE}", _owner_handle)
+
     readme_md = _safe_read(env.repo_path("README.md"))
     state_json = _safe_read(env.drive_path("state/state.json"), fallback="{}")
 
