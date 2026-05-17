@@ -23,9 +23,12 @@ from __future__ import annotations
 import datetime
 import logging
 import os
+import queue as queue_mod
 import signal
 import sys
+import threading
 import time
+import types
 import uuid
 from pathlib import Path
 from typing import Any, Dict, Optional
@@ -34,6 +37,7 @@ log = logging.getLogger(__name__)
 
 # In-process flag flipped by signal handlers
 _SHUTDOWN_REQUESTED = False
+_EVENT_DRAINER_STOP = threading.Event()
 
 
 def _utc_iso() -> str:
@@ -125,17 +129,33 @@ def run(data_root: Path) -> int:
         log.warning("boot: consciousness failed to start: %s", e, exc_info=True)
         consciousness = None
 
-    # --- 6. signal handlers ---
+    # --- 6. event drainer thread ---
+    # Worker/agent events land on workers.get_event_q() but nothing was
+    # consuming them — agent-side `send_message` events sat forever in the
+    # queue, so the bot typed but never spoke. Build a ctx bundle and start
+    # a daemon that dispatches each event via supervisor.events.dispatch_event.
+    ctx = _build_event_ctx(tg, data_root, send_with_budget, consciousness)
+    drainer = threading.Thread(
+        target=_event_drainer_loop,
+        args=(workers.get_event_q(), ctx),
+        name="event-drainer",
+        daemon=True,
+    )
+    drainer.start()
+    log.info("boot: event drainer started")
+
+    # --- 7. signal handlers ---
     signal.signal(signal.SIGINT, _request_shutdown)
     signal.signal(signal.SIGTERM, _request_shutdown)
 
-    # --- 7. polling loop ---
+    # --- 8. polling loop ---
     try:
         _run_polling_loop(tg, data_root)
     except KeyboardInterrupt:
         log.info("boot: KeyboardInterrupt — shutting down")
     finally:
-        # Graceful shutdown — drain workers, stop consciousness
+        # Graceful shutdown — stop drainer, drain workers, stop consciousness
+        _EVENT_DRAINER_STOP.set()
         try:
             workers.shutdown(timeout=5.0)
         except Exception:
@@ -150,6 +170,63 @@ def run(data_root: Path) -> int:
         })
 
     return 0
+
+
+def _build_event_ctx(tg: Any, data_root: Path, send_with_budget: Any,
+                     consciousness: Any) -> types.SimpleNamespace:
+    """Assemble the ctx object that supervisor.events handlers expect."""
+    from supervisor import workers as _workers
+    from supervisor import queue as _queue
+    from supervisor.state import (
+        append_jsonl as _append_jsonl,
+        load_state as _load_state,
+        save_state as _save_state,
+        update_budget_from_usage as _update_budget,
+    )
+    from supervisor.git_ops import safe_restart as _safe_restart
+
+    ctx = types.SimpleNamespace()
+    ctx.TG = tg
+    ctx.DRIVE_ROOT = data_root
+    ctx.send_with_budget = send_with_budget
+    ctx.append_jsonl = _append_jsonl
+    ctx.load_state = _load_state
+    ctx.save_state = _save_state
+    ctx.update_budget_from_usage = _update_budget
+    ctx.RUNNING = _workers.RUNNING
+    ctx.PENDING = _workers.PENDING
+    ctx.WORKERS = _workers.WORKERS
+    ctx.kill_workers = _workers.kill_workers
+    ctx.enqueue_task = _queue.enqueue_task
+    ctx.persist_queue_snapshot = _queue.persist_queue_snapshot
+    ctx.sort_pending = _queue.sort_pending
+    ctx.cancel_task_by_id = _queue.cancel_task_by_id
+    ctx.queue_review_task = _queue.queue_review_task
+    ctx.safe_restart = _safe_restart
+    ctx.consciousness = consciousness
+    return ctx
+
+
+def _event_drainer_loop(event_q: Any, ctx: types.SimpleNamespace) -> None:
+    """Daemon loop: pull events off the worker/agent queue and dispatch."""
+    from supervisor.events import dispatch_event
+    while not _EVENT_DRAINER_STOP.is_set():
+        try:
+            evt = event_q.get(timeout=0.5)
+        except queue_mod.Empty:
+            continue
+        except (EOFError, OSError):
+            # Queue closed during shutdown
+            break
+        except Exception:
+            log.debug("event drainer: get failed", exc_info=True)
+            continue
+        if evt is None:  # sentinel
+            continue
+        try:
+            dispatch_event(evt, ctx)
+        except Exception:
+            log.warning("event drainer: dispatch_event raised", exc_info=True)
 
 
 def _run_polling_loop(tg: Any, data_root: Path) -> None:
