@@ -50,9 +50,9 @@
 
 ### First Evolution Cycle (EVOLVE)
 
-- [ ] **EVOLVE-01**: `/evolve` command produces a coherent self-modification proposal (diff visible in Telegram, on `playground`, dry-run)
+- [x] **EVOLVE-01**: `/evolve` command produces a coherent self-modification proposal (diff visible in Telegram, on `playground`, dry-run)
 - [x] **EVOLVE-02**: Background consciousness loop (`heretek/consciousness.py`) runs continuously using the light model, throttled by the existing v6.2.0 circuit breaker (3 empty responses → pause)
-- [ ] **EVOLVE-03**: At least one full evolution loop completed end-to-end: `/evolve` → diff in TG → `/sanction <hash>` → commit visible on `playground`
+- [x] **EVOLVE-03**: At least one full evolution loop completed end-to-end: `/evolve` → diff in TG → `/sanction <hash>` → commit visible on `playground`
 
 ## v2 Requirements
 
@@ -110,9 +110,9 @@ Populated by roadmapper. Each requirement maps to exactly one phase.
 | LAUNCH-03 | Phase 4 | Complete |
 | LAUNCH-04 | Phase 4 | Complete |
 | LAUNCH-05 | Phase 4 | Complete |
-| EVOLVE-01 | Phase 4 | Pending |
+| EVOLVE-01 | Phase 4 | Complete |
 | EVOLVE-02 | Phase 4 | Complete |
-| EVOLVE-03 | Phase 4 | Pending |
+| EVOLVE-03 | Phase 4 | Complete |
 
 **Coverage:**
 - v1 requirements: 30 total

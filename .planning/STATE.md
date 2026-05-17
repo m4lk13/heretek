@@ -3,13 +3,13 @@ gsd_state_version: 1.0
 milestone: v6.2
 milestone_name: milestone
 status: unknown
-stopped_at: Completed 04-03-PLAN.md
-last_updated: "2026-05-17T07:11:00.393Z"
+stopped_at: Completed 04-04-PLAN.md
+last_updated: "2026-05-17T07:21:00Z"
 progress:
   total_phases: 4
   completed_phases: 3
   total_plans: 15
-  completed_plans: 13
+  completed_plans: 14
 ---
 
 # Project State
@@ -28,7 +28,7 @@ See: .planning/PROJECT.md (updated 2026-05-16)
 ## Current Position
 
 Phase: 04 (launch-first-evolution) — EXECUTING
-Plan: 2 of 5
+Plan: 4 of 5
 
 ## Performance Metrics
 
@@ -65,6 +65,7 @@ Plan: 2 of 5
 | Phase 04-launch-first-evolution P01 | 5 | 3 tasks | 5 files |
 | Phase 04-launch-first-evolution P02 | 8 | 2 tasks | 5 files |
 | Phase 04-launch-first-evolution P03 | 8 | 3 tasks | 4 files |
+| Phase 04-launch-first-evolution P04 | 4 | 2 tasks | 3 files |
 
 ## Accumulated Context
 
@@ -124,6 +125,8 @@ Recent decisions affecting current work:
 - [Phase 04-launch-first-evolution]: __main__.py hard-imports boot (no try/except) — boot.py is no longer optional as of Plan 04-03
 - [Phase 04-launch-first-evolution]: test_env_fail_loud Case 4 accepts TimeoutExpired — post-Plan-03 the subprocess enters the actual polling loop; timeout = env validation passed = correct behavior
 - [Phase 04-launch-first-evolution]: telegram.init() called in boot.run() to wire _TG global before polling loop — required for send_with_budget to work
+- [Phase 04-launch-first-evolution]: Plan 04-04: Option A staging (live-tree + post-loop git stash) over Option B (git worktree): fewer code changes; _capture_evolution_dryrun() method added to OuroborosAgent; dryrun ID schema dr-<UTC>-<8hex> consistent between fixture and production paths
+- [Phase 04-launch-first-evolution]: Plan 04-04: OLLAMA_MODEL=qwen3:4b escape hatch documented — 24GB primary can OOM on 32GB host during /evolve; set env var for low-RAM sessions before python -m supervisor
 
 ### Pending Todos
 
@@ -138,7 +141,7 @@ None yet.
 
 ## Session Continuity
 
-Last session: 2026-05-17T07:11:00.390Z
-Stopped at: Completed 04-03-PLAN.md
+Last session: 2026-05-17T07:22:00Z
+Stopped at: Completed 04-04-PLAN.md
 Resume file: None
-Recommended next: `/gsd:discuss-phase 4` (no CONTEXT.md yet) — gather context for launch-+-first-evolution before planning.
+Recommended next: Execute Plan 04-05 (documentation + manual VERIFICATION.md for LAUNCH-01, LAUNCH-04, EVOLVE-01 quality, EVOLVE-03 witnessed end-to-end loop).
