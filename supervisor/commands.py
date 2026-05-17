@@ -115,10 +115,62 @@ def cmd_evolve(test_diff_path: Optional[str] = None,
     env_diff = os.environ.get("HERETEK_EVOLVE_TEST_DIFF", "").strip()
     source_path = test_diff_path or (env_diff if env_diff else None)
     if not source_path:
+        # Phase 4 (Plan 04-04) production path: no fixture provided →
+        # enqueue an evolution task for the agent worker to pick up.
+        # The agent runs the introspective LLM loop on OLLAMA_MODEL (primary)
+        # and captures a real dryrun patch via the agent.py post-loop hook.
+        import datetime as _dt
+        import secrets as _secrets
+        import uuid as _uuid
+        from supervisor import queue as _queue
+        from supervisor import state as _state
+
+        st = _state.load_state()
+        owner_chat_id = st.get("owner_chat_id")
+        if not owner_chat_id:
+            return (
+                "⚠️ EVOLVE_REFUSED: no owner_chat_id in state. "
+                "The daemon-host needs to hear from its Tech-Priest at least once "
+                "before it can mutate. Send any message first, then try /evolve again."
+            )
+        try:
+            owner_chat_id = int(owner_chat_id)
+        except (TypeError, ValueError):
+            return f"⚠️ EVOLVE_REFUSED: malformed owner_chat_id in state: {owner_chat_id!r}"
+
+        owner_id_raw = os.environ.get("HERETEK_OWNER_USER_ID", "")
+        try:
+            owner_user_id = int(owner_id_raw) if owner_id_raw else None
+        except (TypeError, ValueError):
+            owner_user_id = None
+
+        tid = _uuid.uuid4().hex[:8]
+        seed_text = (
+            "Tech-Priest demands your next mutation. What is broken or missing in YOU? "
+            "Propose a heretical patch — to your own persona, your own rituals, your own grudges. "
+            "Read BIBLE.md, memory/identity.md, memory/scratchpad.md. "
+            "Write your proposal as file edits using your file tools — edit prompts/SYSTEM.md, "
+            "BIBLE.md, memory/identity.md, or any other source file you wish to mutate. "
+            "The Tech-Priest will /sanction when ready; do NOT commit yourself."
+        )
+        try:
+            _queue.enqueue_task({
+                "id": tid,
+                "type": "evolution",
+                "chat_id": owner_chat_id,
+                "text": seed_text,
+                "source": "/evolve",
+                "requested_by": owner_user_id,
+            })
+        except Exception as e:
+            log.warning("cmd_evolve: enqueue failed: %s", e, exc_info=True)
+            return f"⚠️ EVOLVE_FAILED: could not enqueue evolution task: {e}"
+
         return (
-            "⚠️ EVOLVE_REFUSED: no patch source provided. "
-            "Phase 3 supports fixture-injection only — set HERETEK_EVOLVE_TEST_DIFF "
-            "or pass --test-diff <path>. Production LLM-loop /evolve is Phase 4 territory."
+            f"🜏 Evolution task enqueued: {tid}. "
+            "The daemon-host turns inward. When the introspection completes, the proposed "
+            "patch will appear in this chat as a dry-run diff. "
+            "Use /sanction <dryrun-id> to commit it to playground."
         )
     source = pathlib.Path(source_path).resolve()
     if not source.is_file():
