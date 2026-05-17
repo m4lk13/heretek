@@ -143,16 +143,9 @@ def main(argv: list[str] | None = None) -> int:
     # Resolve data root + ensure subdirs exist.
     data_root = _resolve_data_root()
 
-    # Delegate the full boot sequence to supervisor.boot (Plan 04-03 lands the body).
-    try:
-        from supervisor import boot
-    except ImportError:
-        print(
-            "[supervisor] boot module not yet wired (Plan 04-03 lands the "
-            "polling loop). Env validation passed; data_root resolved.",
-            file=sys.stderr,
-        )
-        return 0
+    # Delegate the full boot sequence to supervisor.boot.
+    # boot.py exists as of Plan 04-03 — this is now a hard import.
+    from supervisor import boot
     return boot.run(data_root=data_root)
 
 
