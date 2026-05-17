@@ -1288,23 +1288,33 @@ def test_env_fail_loud() -> str:
         return "fail"
 
     # Case 4: Both set + tempdir for DATA_ROOT → supervisor proceeds past validation
-    # (boot.py may not exist yet — Plan 04-01's __main__ fallback returns 0)
+    # (boot.py exists as of Plan 04-03 and starts the TG polling loop; with a
+    # fake token the TG call will fail fast or loop — either way we reach boot.run(),
+    # which proves env validation passed. A TimeoutExpired also means we got past
+    # validation; any non-zero exit from TG rejection is also acceptable.)
     with tempfile.TemporaryDirectory() as tmpdir:
         env4 = dict(env2)
         env4["HERETEK_OWNER_USER_ID"] = "12345"
         env4["HERETEK_DATA_ROOT"] = tmpdir
-        r4 = subprocess.run(
-            [sys.executable, "-m", "supervisor"],
-            cwd=str(project_root),
-            env=env4,
-            capture_output=True, text=True, timeout=15,
-        )
-        # rc==0 means env validation passed (boot module either ran or fallback fired)
-        # rc==1 acceptable ONLY if stderr mentions "boot module not yet wired" (pre-Plan-03 state)
-        if r4.returncode not in (0, 1):
-            print(f"{FAIL} test_env_fail_loud: case 4 unexpected rc={r4.returncode}; "
-                  f"stderr={r4.stderr[:300]!r}")
-            return "fail"
+        try:
+            r4 = subprocess.run(
+                [sys.executable, "-m", "supervisor"],
+                cwd=str(project_root),
+                env=env4,
+                capture_output=True, text=True, timeout=5,
+            )
+            # Any exit code is acceptable as long as it wasn't the env-validation
+            # failure codes (2) used for missing/bad HERETEK_OWNER_USER_ID or TOKEN.
+            # rc==0: boot ran and exited cleanly (e.g. SIGINT or immediate TG error)
+            # rc==1: some other error (TG auth failure, etc.) — still proves env OK
+            if r4.returncode == 2:
+                print(f"{FAIL} test_env_fail_loud: case 4 got rc=2 (env validation "
+                      f"failed with valid env); stderr={r4.stderr[:300]!r}")
+                return "fail"
+        except subprocess.TimeoutExpired:
+            # Expected post-Plan-04-03: boot.py entered the polling loop.
+            # Timeout = env validation passed and boot started. This is correct.
+            pass
 
     print(f"{PASS} test_env_fail_loud: all 4 cases fail-loud or pass as expected")
     return "pass"
