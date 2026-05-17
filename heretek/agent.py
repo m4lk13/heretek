@@ -435,6 +435,23 @@ class OuroborosAgent:
             if not isinstance(text, str) or not text.strip():
                 text = "⚠️ Модель вернула пустой ответ. Попробуй переформулировать запрос."
 
+            # Phase 4 (Plan 04-04) — Evolution post-loop hook (Option A: stash + diff).
+            # The agent has just made file edits to the live tree. Capture them as
+            # a dryrun proposal instead of letting them persist; the owner /sanctions
+            # the diff to commit it later.
+            if task_type_str == "evolution":
+                try:
+                    self._capture_evolution_dryrun(
+                        task_id=str(task.get("id") or ""),
+                        chat_id=int(task.get("chat_id") or 0),
+                        llm_summary=text,
+                    )
+                except Exception as _e:
+                    append_jsonl(drive_logs / "events.jsonl", {
+                        "ts": utc_now_iso(), "type": "evolution_capture_failed",
+                        "task_id": task.get("id"), "error": repr(_e),
+                    })
+
             # Emit events for supervisor
             self._emit_task_results(task, text, usage, llm_trace, start_time, drive_logs)
             return list(self._pending_events)
@@ -576,6 +593,89 @@ class OuroborosAgent:
         except Exception:
             log.warning("Failed to emit progress event", exc_info=True)
             pass
+
+    def _capture_evolution_dryrun(self, task_id: str, chat_id: int,
+                                  llm_summary: str) -> None:
+        """Capture the agent's live-tree changes as a dryrun proposal.
+
+        Phase 4 (Plan 04-04) Option A staging mechanic:
+          1. Run `git diff HEAD` in repo_dir → that IS the proposal
+          2. If non-empty: assign a dryrun ID (matches Phase 3 schema:
+             dr-<UTC>-<8hex>), write the patch to .heretek/dryruns/<id>.patch
+             and sidecar .heretek/dryruns/<id>.json with status='pending'
+          3. `git stash push -u` to revert the live tree (so the patch is the
+             ONLY artifact; no live commits until /sanction)
+          4. Send the diff to the owner's chat as a code-block-formatted
+             dry-run message via send_with_budget
+
+        If `git diff HEAD` is empty (agent made no edits), send a short
+        in-character "nothing to mutate" notice instead.
+        """
+        import datetime as _dt
+        import hashlib as _hashlib
+        import json as _json
+        import secrets as _secrets
+        import subprocess as _sp
+        from pathlib import Path as _Path
+
+        repo = _Path(self.env.repo_dir)
+        heretek_dir = repo / ".heretek"
+        dryruns_dir = heretek_dir / "dryruns"
+        dryruns_dir.mkdir(parents=True, exist_ok=True)
+
+        # Step 1: capture diff
+        r = _sp.run(["git", "diff", "HEAD"], cwd=str(repo),
+                    capture_output=True, text=True, timeout=30)
+        diff_text = r.stdout or ""
+
+        from supervisor.telegram import send_with_budget
+
+        if not diff_text.strip():
+            # Agent made no edits — send a wry in-character note
+            if chat_id:
+                send_with_budget(chat_id, (
+                    "🜏 The daemon-host stared into BIBLE.md and saw no flaw. "
+                    "No mutation proposed this cycle."
+                ))
+            return
+
+        # Step 2: persist dryrun (ID schema matches Phase 3: dr-<UTC>-<8hex>)
+        ts = _dt.datetime.now(_dt.timezone.utc).strftime("%Y%m%dT%H%M%S")
+        dryrun_id = f"dr-{ts}-{_secrets.token_hex(4)}"
+        patch_dest = dryruns_dir / f"{dryrun_id}.patch"
+        sidecar_dest = dryruns_dir / f"{dryrun_id}.json"
+
+        patch_dest.write_text(diff_text, encoding="utf-8")
+        sha256 = _hashlib.sha256(diff_text.encode("utf-8")).hexdigest()
+        sidecar = {
+            "id": dryrun_id,
+            "task_id": task_id,
+            "status": "pending",
+            "created_at": _dt.datetime.now(_dt.timezone.utc).isoformat(),
+            "sha256": sha256,
+            "source": "/evolve (production)",
+            "llm_summary": (llm_summary or "")[:1000],
+        }
+        sidecar_dest.write_text(_json.dumps(sidecar, indent=2), encoding="utf-8")
+
+        # Step 3: stash live-tree changes (revert; the patch is the only artifact)
+        try:
+            _sp.run(["git", "stash", "push", "-u", "-m",
+                     f"heretek dryrun {dryrun_id} (pre-sanction stash)"],
+                    cwd=str(repo), check=False, capture_output=True, timeout=30)
+        except Exception:
+            pass  # Stash failure is non-fatal; patch is already written
+
+        # Step 4: emit to owner chat
+        if chat_id:
+            # Code-block-formatted raw diff; send_with_budget handles 4096-char chunking.
+            msg = (
+                f"🜏 Dry-run proposal: `{dryrun_id}`\n\n"
+                f"```diff\n{diff_text[:3500]}\n```\n\n"
+                f"To accept this mutation: `/sanction {dryrun_id}`\n"
+                f"To discard: delete `.heretek/dryruns/{dryrun_id}.*`"
+            )
+            send_with_budget(chat_id, msg, fmt="markdown")
 
     def _emit_typing_start(self) -> None:
         if self._event_queue is None or self._current_chat_id is None:
