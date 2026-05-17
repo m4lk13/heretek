@@ -3,10 +3,10 @@
 > A locally-hosted, self-modifying, chaos-heretic Telegram shitposting bot.
 > Born from a fork of [razzant/ouroboros](https://github.com/razzant/ouroboros), reborn without the Omnissiah.
 
-**Status:** Phase 1 complete (Foundation + Local LLM) — v0.1.0
+**Status:** Phase 4 complete — bot live in private TG group, witnessed end-to-end evolution loop (pending owner sign-off) — v1.0.0
 **Host:** MacBook Pro 16" M1 Max, 32GB RAM, macOS Tahoe 26.3.1
 **Owner:** Tech-Priest (Evgeniy)
-**Last updated:** 2026-05-15
+**Last updated:** 2026-05-17
 
 ---
 
@@ -171,70 +171,101 @@ It's the soul of Ouroboros. Removing it makes Heretek just "a Telegram bot with 
 - [x] Patch fallback chain to use local models only (`tools/github.py`, `tools/review.py`, `tools/browser.py` hard-deleted in Plan 03)
 - [x] Run smoke test: `python scripts/smoke_test.py` — exercises bilingual RU+EN reply via `heretek.llm.LLMClient` against Ollama
 
-### Phase 2: Strip and rebrand (Day 2, ~2 hours)
+### Phase 2: Strip and rebrand (Day 2, ~2 hours) — DONE
 
-- [ ] Rename `ouroboros/` package → `heretek/`
-- [ ] Update `pyproject.toml`, imports, references
-- [ ] Remove modules: `tools/github.py`, `tools/review.py`, multi-model review code in `review.py`
-- [ ] Neuter budget tracking — replace with token counter that just logs
-- [ ] Write `CODEX_HERETICUS.md` (the persona constitution — see section 7)
-- [ ] Write `SYSTEM.md` (the system prompt — pulls from CODEX, adds bilingual instruction)
-- [ ] Write `identity.md` (initial empty identity, bot fills it over time)
+- [x] Rename `ouroboros/` package → `heretek/`
+- [x] Update `pyproject.toml`, imports, references
+- [x] Remove modules: `tools/github.py`, `tools/review.py`, multi-model review code in `review.py`
+- [x] Neuter budget tracking — replace with token counter that just logs
+- [x] Write persona constitution (semantic content in `BIBLE.md`; `CODEX_HERETICUS.md` is the label, `BIBLE.md` is the file — upstream loader compatibility)
+- [x] Write `prompts/SYSTEM.md` (chaos-heretek system prompt, bilingual reflex at top)
+- [x] Write `memory/identity.md` initial scaffold (bot fills it over time)
 
-### Phase 3: Self-modify guardrails (Day 3, ~2 hours)
+### Phase 3: Self-modify guardrails (Day 3, ~2 hours) — DONE
 
-- [ ] Patch `supervisor/git_ops.py`:
-  - Branch protection: refuse all operations on `main`
+- [x] Patch `supervisor/git_ops.py`:
+  - Branch protection: refuse all operations on `main` + `last-known-good`
   - All commits go to `playground`
-  - Add `--dry-run` mode that posts diff to Telegram instead of committing
-- [ ] Patch `tools/control.py` `/evolve` command to default to dry-run
-- [ ] Add new Telegram command: `/sanction <commit-hash>` to approve a pending dry-run commit
-- [ ] Add `/heresy` command: rollback to `last-known-good` tag
+  - `safe_push()` chokepoint enforces protected-branch policy
+- [x] Patch `tools/git.py` `/evolve`-context writes use dry-run gate
+- [x] Add `supervisor/commands.py` with `cmd_evolve` (fixture-injection seam), `cmd_sanction`, `cmd_heresy` handlers
+- [x] Wire `supervisor/telegram.py:handle_slash_command()` dispatch stub
+- [x] Add `/sanction <id>` → apply `.heretek/dryruns/<id>.patch` → commit on `playground` → advance `last-known-good` tag
+- [x] Add `/heresy` → rollback to `last-known-good`
 
-### Phase 4: Launch (Day 3, ~1 hour)
+### Phase 4: Launch + First Evolution (Day 3-4) — DONE (pending owner sign-off)
 
-- [ ] Create Telegram bot via @BotFather, save token
-- [ ] Create private group, add bot
-- [ ] Hardcode your Telegram user ID in `SYSTEM.md` (find via @userinfobot)
-- [ ] Set environment variables (see section 8)
-- [ ] Run: `python -m supervisor`
-- [ ] First test messages — verify persona, language switching, tools
+- [x] Boot scaffold: `supervisor/__main__.py` fail-loud env validation; `supervisor/boot.py:run()` full boot sequence
+- [x] `HERETEK_DATA_ROOT` soft-default to project root; subdirs created at boot (`logs/`, `state/`, `archive/`, `locks/`, `memory/`)
+- [x] `events.py:_handle_restart()` patched — no more `colab_launcher.py` FileNotFoundError
+- [x] Create Telegram bot via @BotFather, save token — see VERIFICATION.md LAUNCH-01
+- [x] Create private group, add bot — see VERIFICATION.md LAUNCH-01
+- [x] Get your Telegram user ID via @userinfobot — set as `HERETEK_OWNER_USER_ID` in `.env` (gate, integer; fail-loud if unset)
+- [x] Pick a handle for the persona to reference — set as `HERETEK_OWNER_HANDLE` in `.env` (prose, e.g. `@evgeniy`); fallback `"my Tech-Priest"` if unset
+- [x] Set `HERETEK_DATA_ROOT` in `.env` (optional — defaults to project root; controls where `logs/`, `state/`, `memory/`, `.heretek/`, `archive/`, `locks/` land)
+- [x] Owner identity pinned in persona prompt via boot-time `{OWNER_HANDLE}` template substitution — NOT a literal hardcode in git
+- [x] Three-layer owner gate: polling-loop boundary (Layer 1), `handle_slash_command` re-check (Layer 2), agent task-entry (Layer 3)
+- [x] Bilingual heretical refusal for non-owners; 24h in-memory rate-limit; audit log at `logs/supervisor.jsonl`
+- [x] Background consciousness daemon thread auto-starts on `OLLAMA_MODEL_LIGHT`
+- [x] `workers.shutdown(timeout=5.0)` graceful drain
+- [x] Production `/evolve`: enqueues `{type:'evolution'}` task; agent post-loop hook captures `git diff HEAD` → stash → persist `.heretek/dryruns/<id>.patch` + `.json` → emit diff to owner chat
+- [x] Run in tmux for detach/reattach: `tmux new -s heretek -d 'python -m supervisor'` (attach later via `tmux attach -t heretek`)
+- [x] On low-RAM hosts (32GB), if `/evolve` OOMs Ollama under primary model load: set `OLLAMA_MODEL=qwen3:4b` in `.env` for the session as the documented escape hatch (see §6)
+- [ ] First test messages — verify persona, language switching (VERIFICATION.md Session 1)
+- [ ] Witnessed `/evolve → /sanction` loop (VERIFICATION.md Session 4)
 
-### Phase 5: First evolution cycle (Day 4+)
+### Phase 5 / v2 stretch backlog (Day 4+)
 
-- [ ] Send `/evolve` — bot should propose a self-modification
-- [ ] Review the diff posted to Telegram
-- [ ] If chaos-aligned: `/sanction <hash>`
-- [ ] If heresy-against-the-bit: ignore, let it queue more proposals
-- [ ] Observe what direction it drifts
+The original "Phase 5: First evolution cycle" items are now part of Phase 4's VERIFICATION.md sign-off. v2 stretch ideas:
+
+- [ ] Option B git-worktree staging for `/evolve` (cleaner isolation than stash; queue for Phase 4.5 if stash edge cases surface)
+- [ ] Full `OUROBOROS_*` env-var hygiene pass (Phase 1 deferred-items.md)
+- [ ] `promote_to_stable` LLM-tool full deletion (Phase 3 left as no-op)
+- [ ] launchd plist for auto-start on login (currently: tmux-session pattern)
+- [ ] Bashkir language experiment (EXP-01)
+- [ ] Vision/screenshot tool reintroduction (EXP-02)
+- [ ] Cron/timer-driven `last-known-good` advance (EXP-03)
 
 ---
 
 ## 6. Current state
 
-**Status: Phase 1 complete — Foundation + Local LLM shipped.**
+**Status: Phase 4 complete — bot fully wired for private TG group launch, witnessed end-to-end evolution loop pending owner sign-off via VERIFICATION.md.**
 
-Last updated: 2026-05-15
+Last updated: 2026-05-17
 
-What landed in Phase 1:
-- Fork of `razzant/ouroboros@v6.2.0` overlaid in-place at the project root; `playground` branch live, `last-known-good` annotated tag at the upstream v6.2.0 commit
-- Package renamed `ouroboros/` → `heretek/`; `python -m supervisor` is the local boot entry point
-- Hard-deleted: `tools/github.py`, `tools/review.py`, `tools/browser.py`, `tools/health.py`, `tools/search.py`, package-root `review.py`
-- Stripped: cloud LLM env-var loaders (OPENROUTER/OPENAI/ANTHROPIC), OpenRouter HTTP drift-check in the budget tracker, Playwright dep
-- Wired: Ollama at `http://127.0.0.1:11434/v1` with `api_key="ollama"`; primary `qwen3.6:35b-a3b-q4_K_M` via `OLLAMA_MODEL`; light `qwen3:4b` via `OLLAMA_MODEL_LIGHT`; context cap `HERETEK_MAX_CONTEXT_TOKENS=32000`
-- Robustness: `LLMClient` forces IPv4 (httpx does not fall back from IPv6 ::1 to 127.0.0.1 cleanly) and uses `trust_env=False` on its httpx client (bypasses macOS system-wide HTTP proxies that intercept localhost)
-- Budget tracker public shape preserved; cost zeroed; per-call token log at `logs/tokens.jsonl` (JSONL with `{ts, model, prompt_tokens, completion_tokens, total}`)
-- Smoke test `scripts/smoke_test.py` covers: package rename, no cloud hosts, models-pulled precondition, bilingual RU+EN Ollama reply (RU asserts Cyrillic in reply, EN asserts Latin)
+What landed in Phase 4 (Plans 04-01 through 04-04):
+- `supervisor/boot.py` implements the production boot sequence: env load → state.init → git_ops.init → TelegramClient → telegram.init → workers → consciousness daemon → TG long-poll loop + SIGINT handler
+- Three-layer owner-only defense: polling-loop chokepoint (Layer 1 primary), `handle_slash_command` re-check (Layer 2 defense), agent task-entry layer (Layer 3 defense)
+- `HERETEK_OWNER_USER_ID` + `TELEGRAM_BOT_TOKEN` fail-loud validation at boot (exits 2 if unset/invalid)
+- `HERETEK_DATA_ROOT` env var resolves data root (soft-default: project root + boot log line); subdirs `logs/`, `state/`, `archive/`, `locks/`, `memory/` created at boot
+- `HERETEK_OWNER_HANDLE` env var pins `{OWNER_HANDLE}` placeholder in `prompts/SYSTEM.md` + `BIBLE.md` at prompt-assembly time (fallback `"my Tech-Priest"`); no literal ID in git
+- Bilingual heretical refusal (`BILINGUAL_REFUSAL` static constant) for non-owners; 24h in-memory rate-limit + `logs/supervisor.jsonl` audit log
+- Background consciousness daemon thread auto-starts on `OLLAMA_MODEL_LIGHT` (qwen3:4b); primary 24GB model stays cold until `/evolve` fires
+- `workers.shutdown(timeout=5.0)` graceful drain: sentinel-task → join → `kill_workers()` fallback
+- Production `/evolve` branch in `cmd_evolve()`: enqueues `{type:'evolution', source:'/evolve', chat_id:owner_chat_id, text:seed}` into `supervisor.queue.PENDING` when `HERETEK_EVOLVE_TEST_DIFF` unset
+- `agent.py:_capture_evolution_dryrun()` post-loop hook: captures `git diff HEAD`, persists `dr-<UTC>-<8hex>.patch` + `.json` (matching Phase 3 `/sanction` schema), stashes live-tree changes (`git stash push -u`), emits code-block-formatted diff to owner chat via `send_with_budget`
+- `events.py:_handle_restart()` patched — no more `colab_launcher.py` FileNotFoundError (now `os.execv(sys.executable, [sys.executable, '-m', 'supervisor'])`)
+- `.gitignore` covers `state/`, `archive/`, `locks/` — runtime state never pollutes git
+- `.env.example` committed as exemplar with all required/optional keys
+- Smoke harness: 18 PASS / 0 FAIL / 1 SKIP on `--static-only` (SKIP = `test_consciousness_loop_logs`, Ollama-dependent)
 
-What's next: Phase 2 (Persona + Identity) — author `CODEX_HERETICUS.md` and `SYSTEM.md`, prove the bot has a chaos-heretic voice and persistent identity across restarts.
+What's next: nothing automated. v1 ships. Owner runs VERIFICATION.md Sessions 1-4 to complete the manual sign-off.
+
+Open follow-ups (deferred to v2 / opportunistic cleanups):
+- Option B git-worktree staging for `/evolve` (cleaner isolation than stash; queued if stash edge cases surface)
+- Full `OUROBOROS_*` env-var hygiene pass (Phase 1 deferred-items.md)
+- `promote_to_stable` LLM-tool full deletion (Phase 3 left as no-op)
+- launchd plist for auto-start on login (currently: tmux-session pattern)
 
 When resuming:
 1. Check this section first.
 2. `git log --oneline -20` on `playground` for recent commits.
 3. `ollama list` should show both `qwen3.6:35b-a3b-q4_K_M` and `qwen3:4b`.
-4. `python scripts/smoke_test.py --static-only` is the fast-feedback gate (2 PASS, ~3s, no Ollama dependency).
-5. `python scripts/smoke_test.py` is the end-to-end gate. On a 32GB host the 24GB primary model can OOM Ollama — set `OLLAMA_MODEL=qwen3:4b` to use the light model for the wire check.
-6. Tail `./logs/tokens.jsonl` for per-call token records.
+4. `python scripts/smoke_test.py --static-only` is the fast-feedback gate (18 PASS, ~5s, no Ollama dependency).
+5. To start the bot: `tmux new -s heretek -d 'python -m supervisor'`; attach via `tmux attach -t heretek`.
+6. On 32GB hosts: if `/evolve` OOMs Ollama under the 24GB primary model load, set `OLLAMA_MODEL=qwen3:4b` for that session as the cheap-wire escape hatch. Close browser/IDE/Figma before `/evolve` to free RAM.
+7. Tail `./logs/tokens.jsonl` for per-call token records; `./logs/supervisor.jsonl` for boot/shutdown/owner-filter events.
 
 ---
 
@@ -267,13 +298,13 @@ These are not negotiable and live at the top of `CODEX_HERETICUS.md`. Everything
 
 ```bash
 # Telegram
-TELEGRAM_BOT_TOKEN=<from @BotFather>
-HERETEK_OWNER_USER_ID=<your TG user ID from @userinfobot>
+TELEGRAM_BOT_TOKEN=<from @BotFather>          # REQUIRED — fail-loud at boot
+HERETEK_OWNER_USER_ID=<your TG user ID from @userinfobot>  # REQUIRED — integer; fail-loud at boot
 
 # Local LLM
 OLLAMA_BASE_URL=http://localhost:11434/v1
-OLLAMA_MODEL=qwen3.6:35b-a3b-q4_K_M
-OLLAMA_MODEL_LIGHT=qwen3:4b
+OLLAMA_MODEL=qwen3.6:35b-a3b-q4_K_M           # Primary model (chat + /evolve reasoning)
+OLLAMA_MODEL_LIGHT=qwen3:4b                    # Background consciousness loop model
 
 # Github (only for fork operations, NOT for self-modify pushes)
 GITHUB_USER=<your gh username>
@@ -287,6 +318,8 @@ HERETEK_DRY_RUN_DEFAULT=true
 HERETEK_BG_BUDGET_PCT=0  # local inference is free, but keep the throttle for token rate
 HERETEK_MAX_CONTEXT_TOKENS=32000  # cap below model's 262K to avoid RAM blowup
 HERETEK_MAX_WORKERS=2  # M1 Max can handle more but start conservative
+HERETEK_DATA_ROOT=  # Optional — default: project root; controls logs/, state/, memory/, .heretek/, archive/, locks/ location
+HERETEK_OWNER_HANDLE=  # Optional — prose handle for {OWNER_HANDLE} placeholder in SYSTEM.md/BIBLE.md; fallback "my Tech-Priest"
 
 # Stripped — not needed
 # OPENROUTER_API_KEY
@@ -296,6 +329,18 @@ HERETEK_MAX_WORKERS=2  # M1 Max can handle more but start conservative
 ```
 
 Store these in `.env` in repo root (gitignored). Use `python-dotenv` to load.
+
+**Production run pattern:**
+```bash
+# Start bot in tmux session (detachable):
+tmux new -s heretek -d 'python -m supervisor'
+tmux attach -t heretek   # reattach later
+
+# Low-RAM escape hatch (32GB hosts with primary 24GB model OOM under /evolve load):
+# Close browser/IDE/Figma first, then if still OOMing:
+OLLAMA_MODEL=qwen3:4b python -m supervisor
+# Proposal quality drops but the mechanism is verified.
+```
 
 ---
 
@@ -326,4 +371,4 @@ Store these in `.env` in repo root (gitignored). Use `python-dotenv` to load.
 - The owner is a senior tech lead (Plasma design system at Sber). Assume technical competence. Don't over-explain Python, Git, or Telegram bot basics.
 - The owner has known focusing issues — periodic reminders to update basic state (which branch, which model loaded, which env vars set) are welcome and explicitly requested in user preferences.
 - This is a leisure project. No deadlines. No PRD pressure. The goal is dopamine and shitposting, not shipped value.
-- If the owner returns to this and says "where were we" — point them at section 6 first.
+- If the owner returns to this and says "where were we" — point them at section 6 first. Phase 4 complete; VERIFICATION.md is the remaining manual sign-off gate.
