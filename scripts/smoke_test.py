@@ -1662,14 +1662,106 @@ def test_workers_shutdown_drains_cleanly() -> str:
 
 
 def test_evolve_enqueues_task_when_no_fixture() -> str:
-    """EVOLVE-01 verification: /evolve with HERETEK_EVOLVE_TEST_DIFF unset
-    enqueues {type: 'evolution', source: '/evolve'} into supervisor.queue.PENDING;
-    fixture path still works when env var set.
+    """EVOLVE-01 verification: cmd_evolve with HERETEK_EVOLVE_TEST_DIFF unset
+    and owner_chat_id set enqueues an evolution task into supervisor.queue.
 
-    Owned by Plan 04-04. SKIP until that plan flips it.
+    Owned by Plan 04-04. Live PASS as of this task.
     """
-    print(f"{SKIP} test_evolve_enqueues_task_when_no_fixture: deferred to Plan 04-04")
-    return "skip"
+    import importlib
+    with tempfile.TemporaryDirectory() as tmpdir:
+        drive_root = Path(tmpdir)
+        (drive_root / "state").mkdir(parents=True, exist_ok=True)
+        (drive_root / "logs").mkdir(parents=True, exist_ok=True)
+
+        from supervisor import state, queue, commands
+        state.init(drive_root=drive_root)
+        queue.init(drive_root=drive_root, soft_timeout=60, hard_timeout=120)
+        importlib.reload(commands)
+
+        # Ensure no stray HERETEK_EVOLVE_TEST_DIFF leaks from the test env
+        os.environ.pop("HERETEK_EVOLVE_TEST_DIFF", None)
+        os.environ["HERETEK_OWNER_USER_ID"] = "12345"
+
+        # Hermetic test repo so cmd_evolve's "pending dryrun" check sees a clean .heretek/
+        repo = _make_test_repo(tmpdir)
+        from supervisor import git_ops
+        git_ops.init(
+            repo_dir=repo, drive_root=drive_root, remote_url="",
+            branch_dev="playground", branch_stable="last-known-good",
+        )
+
+        try:
+            # Case 1: no owner_chat_id → friendly error, no enqueue
+            if hasattr(queue, "PENDING") and hasattr(queue.PENDING, "clear"):
+                queue.PENDING.clear()
+            rsp_no_owner = commands.cmd_evolve(repo_dir=repo)
+            if "owner_chat_id" not in rsp_no_owner and "owner" not in rsp_no_owner.lower():
+                print(f"{FAIL} test_evolve_enqueues_task_when_no_fixture: case 1 "
+                      f"expected owner_chat_id error; got {rsp_no_owner!r}")
+                return "fail"
+            if "Evolution task enqueued" in rsp_no_owner:
+                print(f"{FAIL} test_evolve_enqueues_task_when_no_fixture: case 1 "
+                      f"erroneously enqueued; got {rsp_no_owner!r}")
+                return "fail"
+
+            # Case 2: owner_chat_id set → enqueue evolution task, return cooking message
+            st = state.load_state()
+            st["owner_chat_id"] = -100123
+            state.save_state(st)
+
+            rsp_enqueue = commands.cmd_evolve(repo_dir=repo)
+            if "Evolution task enqueued" not in rsp_enqueue:
+                print(f"{FAIL} test_evolve_enqueues_task_when_no_fixture: case 2 "
+                      f"expected enqueue confirmation; got {rsp_enqueue!r}")
+                return "fail"
+
+            # Verify PENDING list now has an evolution task
+            pending = list(getattr(queue, "PENDING", []))
+            evo_tasks = [t for t in pending if t.get("type") == "evolution"]
+            if not evo_tasks:
+                print(f"{FAIL} test_evolve_enqueues_task_when_no_fixture: case 2 "
+                      f"PENDING has no evolution task; pending={pending!r}")
+                return "fail"
+            task = evo_tasks[0]
+            if task.get("source") != "/evolve":
+                print(f"{FAIL} test_evolve_enqueues_task_when_no_fixture: "
+                      f"enqueued task missing source='/evolve'; got {task!r}")
+                return "fail"
+            if task.get("chat_id") != -100123:
+                print(f"{FAIL} test_evolve_enqueues_task_when_no_fixture: "
+                      f"enqueued task chat_id != owner_chat_id; got {task.get('chat_id')!r}")
+                return "fail"
+            if not task.get("text") or "Tech-Priest" not in task.get("text", ""):
+                print(f"{FAIL} test_evolve_enqueues_task_when_no_fixture: "
+                      f"enqueued task text missing Tech-Priest seed; got {task.get('text')!r}")
+                return "fail"
+
+            # Case 3: HERETEK_EVOLVE_TEST_DIFF SET → fixture path still works
+            fixture = repo / "tmp.patch"
+            fixture.write_text(
+                "diff --git a/BIBLE.md b/BIBLE.md\nindex 0000000..1111111 100644\n"
+                "--- a/BIBLE.md\n+++ b/BIBLE.md\n@@ -1 +1,2 @@\n # baseline\n+# heretek mutation\n"
+            )
+            os.environ["HERETEK_EVOLVE_TEST_DIFF"] = str(fixture)
+            try:
+                # Clear pending dryruns so the single-active-proposal check passes
+                import shutil as _shutil
+                dryruns_dir = repo / ".heretek" / "dryruns"
+                if dryruns_dir.exists():
+                    _shutil.rmtree(dryruns_dir)
+                rsp_fixture = commands.cmd_evolve(repo_dir=repo)
+                # Phase 3 fixture path returns a success string with dr-<...> ID
+                if "dr-" not in rsp_fixture:
+                    print(f"{FAIL} test_evolve_enqueues_task_when_no_fixture: case 3 "
+                          f"fixture path broken; got {rsp_fixture!r}")
+                    return "fail"
+            finally:
+                os.environ.pop("HERETEK_EVOLVE_TEST_DIFF", None)
+        finally:
+            os.environ.pop("HERETEK_OWNER_USER_ID", None)
+
+    print(f"{PASS} test_evolve_enqueues_task_when_no_fixture: production enqueue + error path + fixture path all verified")
+    return "pass"
 
 
 def test_consciousness_loop_logs() -> str:
