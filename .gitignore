@@ -18,3 +18,8 @@ memory/
 
 # Heretek dry-run state (staging worktree + pending patches — bot-written, never committed)
 .heretek/
+
+# Heretek runtime state directories (created by state.init / git_ops at boot)
+state/
+archive/
+locks/

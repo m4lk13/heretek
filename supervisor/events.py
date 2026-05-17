@@ -2,7 +2,8 @@
 Supervisor event dispatcher.
 
 Maps event types from worker EVENT_Q to handler functions.
-Extracted from colab_launcher.py main loop to keep it under 500 lines.
+Originally extracted from the upstream cloud launcher; heretek boots via
+`python -m supervisor` (Phase 4 patch, Plan 04-01).
 """
 
 from __future__ import annotations
@@ -194,9 +195,10 @@ def _handle_restart_request(evt: Dict[str, Any], ctx: Any) -> None:
     st2["tg_offset"] = int(st2.get("tg_offset") or st.get("tg_offset") or 0)
     ctx.save_state(st2)
     ctx.persist_queue_snapshot(reason="pre_restart_exit")
-    # Replace current process with fresh Python — loads all modules from scratch
-    launcher = os.path.join(os.getcwd(), "colab_launcher.py")
-    os.execv(sys.executable, [sys.executable, launcher])
+    # Replace current process with fresh Python — loads all modules from scratch.
+    # Phase 4 patch (Plan 04-01): upstream launched via a now-deleted cloud launcher;
+    # heretek boots via `python -m supervisor` instead.
+    os.execv(sys.executable, [sys.executable, '-m', 'supervisor'])
 
 
 def _handle_promote_to_stable(evt: Dict[str, Any], ctx: Any) -> None:
