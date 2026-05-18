@@ -42,7 +42,7 @@
 
 ### Launch (LAUNCH)
 
-- [ ] **LAUNCH-01**: Register Telegram bot via @BotFather; create private group; add bot with owner-only membership
+- [x] **LAUNCH-01**: Register Telegram bot via @BotFather; create private group; add bot with owner-only membership
 - [x] **LAUNCH-02**: Hardcode owner Telegram user ID in `SYSTEM.md` (no first-sender-becomes-owner detection)
 - [x] **LAUNCH-03**: Environment variables loaded from gitignored `.env` via `python-dotenv` (TELEGRAM_BOT_TOKEN, HERETEK_OWNER_USER_ID, OLLAMA_*, HERETEK_*)
 - [x] **LAUNCH-04**: Bot starts via `python -m supervisor`, connects to Telegram, listens to private group, responds with correct persona + language switching
@@ -105,7 +105,7 @@ Populated by roadmapper. Each requirement maps to exactly one phase.
 | SAFE-04 | Phase 3 | Complete |
 | SAFE-05 | Phase 3 | Complete |
 | SAFE-06 | Phase 3 | Complete |
-| LAUNCH-01 | Phase 4 | Pending |
+| LAUNCH-01 | Phase 4 | Complete |
 | LAUNCH-02 | Phase 4 | Complete |
 | LAUNCH-03 | Phase 4 | Complete |
 | LAUNCH-04 | Phase 4 | Complete |

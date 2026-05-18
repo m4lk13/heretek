@@ -21,7 +21,11 @@ A bot the owner enjoys talking to: persistent identity (running gags, callbacks,
 
 ### Active
 
-- [ ] Telegram private-group deployment — owner-only access, owner ID hardcoded (no first-sender footgun)
+_(none — milestone v6.2 complete)_
+
+### Validated (Phase 4)
+
+- [x] Telegram private-group deployment — owner-only access, owner ID env-driven (no first-sender footgun) — Validated in Phase 4: launch-first-evolution (LAUNCH-01..05 + EVOLVE-01..03; full /evolve → /sanction loop witnessed on 2026-05-18)
 
 ### Validated (Phase 3)
 
@@ -75,7 +79,9 @@ A bot the owner enjoys talking to: persistent identity (running gags, callbacks,
 
 ## Current State
 
-Phase 3 (self-modify-guardrails) complete: `supervisor/git_ops.py` ships `safe_push()` as the single git-write chokepoint — raises `ProtectedBranchError` before any subprocess call when target is `main` or `last-known-good` (hardcoded floor, env-expandable). All three push sites (`tools/git.py`, `agent.py`, `events.py`) route through it. `supervisor/commands.py` wires `cmd_heresy()` (checkout playground + reset hard to `last-known-good^{commit}`), `cmd_evolve()` (writes `.heretek/dryruns/<id>.patch` + SHA256 sidecar with zero git calls), and `cmd_sanction()` (SHA256 tamper check → apply → commit → import-test gate → annotated tag advance, with `reset --hard HEAD~1` rollback on test failure). `supervisor/telegram.py` exposes `handle_slash_command()` dispatch hook ready for Phase 4. `python scripts/smoke_test.py --static-only` runs **11 PASS / 0 FAIL / 0 SKIP** with all 6 SAFE-* requirements live-tested via hermetic temp-repo fixtures. Next: Phase 4 (launch-+-first-evolution) — wire the dispatch hook to the live TG polling loop, hardcode owner ID, run the first real `/evolve` → diff → `/sanction` loop in a private group.
+**Milestone v6.2 complete (2026-05-18).** Phase 4 (launch-first-evolution) closes the cycle: `supervisor/__main__.py` validates required env vars fail-loud and delegates to `supervisor/boot.py:run()`, which threads up the daemon — `state.init` → `git_ops.init` → `TelegramClient` → `spawn_workers(HERETEK_MAX_WORKERS)` → `consciousness.start()` on `OLLAMA_MODEL_LIGHT` → event drainer daemon → TG long-poll. Three-layer owner gate: Layer 1 `is_owner_message` at the polling-loop boundary, Layer 2 in `handle_slash_command`, Layer 3 reserved at agent task-entry. Non-owner messages get the static `BILINGUAL_REFUSAL` constant (no LLM call) with 24h per-user_id cooldown. `{OWNER_HANDLE}` template substitution wired through `heretek/context.py:build_llm_messages` from `HERETEK_OWNER_HANDLE` env. Production `/evolve` enqueues `{type:'evolution'}` into the supervisor queue; `agent.py:_capture_evolution_dryrun` captures `git diff HEAD`, persists `.heretek/dryruns/dr-<UTC>-<8hex>.patch+.json`, stashes the live tree, posts the code-block diff to owner chat. `/sanction <id>` (Phase 3 unchanged) routes through `safe_push()` to commit on `playground` and advances `last-known-good`. The first witnessed `/evolve → /sanction → commit` loop landed on 2026-05-18. Smoke harness: **19 PASS / 0 FAIL / 1 SKIP** (consciousness Ollama-gated). Critical post-launch fixes shipped on top: httpx timeout, threaded chat dispatch, Colab-default path leaks in queue.py + workers.py worker_main, lock-acquire timeout. Owner: jj_headsets (75831266); bot: @evil_engine_number_9bot.
+
+Next: ship v6.3 (cycle decisions TBD). Backlog of v2 stretch items: EXP-01 Bashkir, EXP-02 vision/screenshot, EXP-03 cron-driven last-known-good advance, EXP-04 local-friendly web search, in-process watchdog vs tmux, launchd auto-start.
 
 ---
-*Last updated: 2026-05-16 after Phase 3 completion*
+*Last updated: 2026-05-18 after Phase 4 completion (milestone v6.2 shipped)*

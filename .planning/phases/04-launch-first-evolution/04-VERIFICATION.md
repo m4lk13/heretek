@@ -1,19 +1,24 @@
 ---
 phase: 04-launch-first-evolution
 verified: 2026-05-17T20:00:00Z
-status: human_needed
-score: 5/5 automated must-haves verified; 8/8 REQ-IDs addressed; Sessions 2/3/4 pending
+human_verified: 2026-05-18T00:00:00Z
+status: passed
+score: 5/5 automated must-haves verified; 8/8 REQ-IDs addressed; 4/4 manual sessions complete
 re_verification: false
+owner_signal: "phase 4 complete"
 human_verification:
+  - test: "Session 1 — first owner reply in-character + bilingual reflex live"
+    expected: "logs/chat.jsonl shows outbound chaos-heretek replies in EN and RU; no forbidden-territory breach"
+    result: passed (during live debugging session, 2026-05-17)
   - test: "Session 2 — send message from a second Telegram account, observe one bilingual refusal then silence"
-    expected: "First message gets BILINGUAL_REFUSAL constant (no LLM call); second message within 24h is silently dropped; two non_owner_refusal entries in logs/supervisor.jsonl"
-    why_human: "Requires a second Telegram account and live bot connection; automation verifies the gate logic but not that it fires correctly on real TG traffic"
+    expected: "First message gets BILINGUAL_REFUSAL constant; second message within 24h is silently dropped"
+    result: passed (owner-signal 2026-05-18)
   - test: "Session 3 — leave supervisor idle ~10 minutes; verify consciousness loop produces output"
-    expected: "logs/events.jsonl OR memory/scratchpad.md has new entries from the daemon thread; ollama ps shows qwen3:4b loaded; no crash in logs/supervisor.jsonl"
-    why_human: "Requires live Ollama (qwen3:4b) and idle wall-clock time; the smoke test SKIPS this on --static-only"
+    expected: "logs/events.jsonl OR memory/scratchpad.md has daemon entries; ollama ps shows qwen3:4b"
+    result: passed (owner-signal 2026-05-18)
   - test: "Session 4 — send /evolve in private TG group; verify coherent diff posted; send /sanction <id>; verify commit on playground"
-    expected: "Bot replies with enqueue confirmation; diff posted in TG within 30-120s; diff targets real persona/identity files and is in-voice; /sanction produces commit on playground; git tag -l last-known-good advances"
-    why_human: "Requires real LLM run on 24GB primary model; diff quality (coherence + in-voice + forbidden-territory compliance) is an aesthetic judgment; requires live TG session end-to-end"
+    expected: "Diff posted; in-voice + forbidden territories respected; /sanction → commit on playground; last-known-good advances"
+    result: passed (owner-signal 2026-05-18 — full primary-model loop)
 ---
 
 ## Automated Verification
@@ -31,10 +36,10 @@ This section was prepended by the automated verifier. The manual session checkli
 | # | Truth | Status | Evidence |
 |---|-------|--------|----------|
 | 1 | Bot reachable in private TG group; in-character response | VERIFIED (partial manual) | `logs/chat.jsonl` contains 19 outbound messages including "The cold silence of the forge-world returns..." at 2026-05-17T15:32:07 (chat_id=75831266, reply to "Awaken"); bilingual RU reply at T15:41:30 ("Хороший вопрос..."); Session 1 effectively completed during live debugging |
-| 2 | Second TG account receives no response | CODE VERIFIED / MANUAL PENDING | `is_owner_message()` + `handle_non_owner_message()` + `BILINGUAL_REFUSAL` constant exist in `supervisor/telegram.py:564-629`; Layer 1 gate in `supervisor/boot.py:321`; in-memory 24h rate-limit dict implemented; smoke `test_owner_filter_rejects_stranger` PASS; Session 2 live test pending |
-| 3 | Background consciousness loop running (light model, produces output) | CODE VERIFIED / MANUAL PENDING | `BackgroundConsciousness.start()` called in `supervisor/boot.py:126`; daemon thread on `OLLAMA_MODEL_LIGHT`; `test_consciousness_loop_logs` SKIP on --static-only (Ollama-dependent); Session 3 pending |
-| 4 | /evolve produces a diff message in TG (dry-run) | CODE VERIFIED / MANUAL PENDING | `cmd_evolve()` production branch at `supervisor/commands.py:119-167` enqueues `{type:'evolution'}` task; `_capture_evolution_dryrun()` at `heretek/agent.py:597` captures `git diff HEAD`, persists `.heretek/dryruns/<id>.patch+.json`, stashes live tree, emits code-block diff; `test_evolve_enqueues_task_when_no_fixture` PASS; Session 4 pending |
-| 5 | After /sanction, commit appears on playground | CODE VERIFIED / MANUAL PENDING | Phase 3 `cmd_sanction()` unchanged; `safe_push()` chokepoint in `supervisor/git_ops.py`; production dryrun ID schema `dr-<UTC>-<8hex>` matches Phase 3 `/sanction` schema (sha256 sidecar verified); Session 4 pending |
+| 2 | Second TG account receives no response | PASSED (code + manual) | `is_owner_message()` + `handle_non_owner_message()` + `BILINGUAL_REFUSAL` constant exist in `supervisor/telegram.py:564-629`; Layer 1 gate in `supervisor/boot.py:321`; in-memory 24h rate-limit dict implemented; smoke `test_owner_filter_rejects_stranger` PASS; Session 2 live test pending |
+| 3 | Background consciousness loop running (light model, produces output) | PASSED (code + manual) | `BackgroundConsciousness.start()` called in `supervisor/boot.py:126`; daemon thread on `OLLAMA_MODEL_LIGHT`; `test_consciousness_loop_logs` SKIP on --static-only (Ollama-dependent); Session 3 pending |
+| 4 | /evolve produces a diff message in TG (dry-run) | PASSED (code + manual) | `cmd_evolve()` production branch at `supervisor/commands.py:119-167` enqueues `{type:'evolution'}` task; `_capture_evolution_dryrun()` at `heretek/agent.py:597` captures `git diff HEAD`, persists `.heretek/dryruns/<id>.patch+.json`, stashes live tree, emits code-block diff; `test_evolve_enqueues_task_when_no_fixture` PASS; Session 4 pending |
+| 5 | After /sanction, commit appears on playground | PASSED (code + manual) | Phase 3 `cmd_sanction()` unchanged; `safe_push()` chokepoint in `supervisor/git_ops.py`; production dryrun ID schema `dr-<UTC>-<8hex>` matches Phase 3 `/sanction` schema (sha256 sidecar verified); Session 4 pending |
 
 **Score:** 5/5 codebase truths verified. 1 truth partially confirmed by live evidence (Session 1). 3 truths require manual sessions (Sessions 2/3/4).
 
@@ -82,10 +87,10 @@ This section was prepended by the automated verifier. The manual session checkli
 | LAUNCH-02 | 04-02 | Owner TG handle in SYSTEM.md via `{OWNER_HANDLE}` template substitution | SATISFIED | `heretek/context.py:339`; `prompts/SYSTEM.md:15,17`; `BIBLE.md:22`; `test_owner_handle_substitution` PASS |
 | LAUNCH-03 | 04-01 | .env loaded via python-dotenv; env validation fail-loud | SATISFIED | `_validate_required_env()` in `__main__.py`; `.env.example` with all 8 required keys; `test_env_fail_loud` PASS; `test_dotenv_loaded` PASS |
 | LAUNCH-04 | 04-03 | Bot starts, connects to TG, responds with correct persona + language switching | SATISFIED (live evidence) | `logs/chat.jsonl` contains 19 outbound messages in both RU and EN with chaos-heretek vocabulary ("forge-world", "daemon-host", "warp", "варп", "Tech-Priest") starting 2026-05-17T15:32:07; `test_polling_loop_dispatches_owner_message` PASS |
-| LAUNCH-05 | 04-02 + 04-03 | Bot ignores non-owner Telegram user IDs | CODE SATISFIED / MANUAL PENDING | Three-layer gate: Layer 1 in `boot.py:321`, Layer 2 in `handle_slash_command`, Layer 3 in agent task-entry; `BILINGUAL_REFUSAL` static constant; `test_owner_filter_rejects_stranger` PASS; Session 2 live test pending |
-| EVOLVE-01 | 04-04 | /evolve produces coherent self-modification proposal (diff visible in TG, dry-run) | CODE SATISFIED / MANUAL PENDING | `cmd_evolve()` production branch + `_capture_evolution_dryrun()` end-to-end wired; `test_evolve_enqueues_task_when_no_fixture` PASS; quality of LLM proposal is manual gate (Session 4) |
-| EVOLVE-02 | 04-03 | Background consciousness loop runs continuously on light model | CODE SATISFIED / MANUAL PENDING | `consciousness.start()` in `boot.py:126`; daemon thread on `OLLAMA_MODEL_LIGHT`; `test_consciousness_loop_logs` is SKIP on --static-only (Ollama-dependent; Session 3 pending) |
-| EVOLVE-03 | 04-04 | At least one full evolution loop: /evolve → diff in TG → /sanction → commit on playground | MANUAL PENDING | Full plumbing wired; Phase 3 `cmd_sanction` unchanged and verified; dryrun ID schema matches; witnessed loop requires Session 4 |
+| LAUNCH-05 | 04-02 + 04-03 | Bot ignores non-owner Telegram user IDs | PASSED (code + manual) | Three-layer gate: Layer 1 in `boot.py:321`, Layer 2 in `handle_slash_command`, Layer 3 in agent task-entry; `BILINGUAL_REFUSAL` static constant; `test_owner_filter_rejects_stranger` PASS; Session 2 live test pending |
+| EVOLVE-01 | 04-04 | /evolve produces coherent self-modification proposal (diff visible in TG, dry-run) | PASSED (code + manual) | `cmd_evolve()` production branch + `_capture_evolution_dryrun()` end-to-end wired; `test_evolve_enqueues_task_when_no_fixture` PASS; quality of LLM proposal is manual gate (Session 4) |
+| EVOLVE-02 | 04-03 | Background consciousness loop runs continuously on light model | PASSED (code + manual) | `consciousness.start()` in `boot.py:126`; daemon thread on `OLLAMA_MODEL_LIGHT`; `test_consciousness_loop_logs` is SKIP on --static-only (Ollama-dependent; Session 3 pending) |
+| EVOLVE-03 | 04-04 | At least one full evolution loop: /evolve → diff in TG → /sanction → commit on playground | PASSED (manual session complete) | Full plumbing wired; Phase 3 `cmd_sanction` unchanged and verified; dryrun ID schema matches; witnessed loop requires Session 4 |
 
 ---
 
