@@ -256,9 +256,21 @@ Dialogue history ({len(entries)} messages):
 
 Now write a comprehensive summary:"""
 
-        # Call LLM
+        # Call LLM. Local-only deployment — never silently route to a cloud
+        # model. Prefer OLLAMA_MODEL_LIGHT for cheap summarization; fall back to
+        # OLLAMA_MODEL; legacy OUROBOROS_* names accepted for one release.
         llm = LLMClient()
-        model = os.environ.get("OUROBOROS_MODEL_LIGHT", "") or os.environ.get("OUROBOROS_MODEL", "anthropic/claude-sonnet-4.6")
+        model = (
+            os.environ.get("OLLAMA_MODEL_LIGHT", "").strip()
+            or os.environ.get("OLLAMA_MODEL", "").strip()
+            or os.environ.get("OUROBOROS_MODEL_LIGHT", "").strip()
+            or os.environ.get("OUROBOROS_MODEL", "").strip()
+        )
+        if not model:
+            return (
+                "ERROR: no model configured. Set OLLAMA_MODEL_LIGHT or OLLAMA_MODEL "
+                "in the environment before calling summarize_dialogue."
+            )
 
         messages = [
             {"role": "user", "content": prompt}

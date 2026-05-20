@@ -37,11 +37,6 @@ def _request_restart(ctx: ToolContext, reason: str) -> str:
     return f"Restart requested: {reason}"
 
 
-def _promote_to_stable(ctx: ToolContext, reason: str) -> str:
-    ctx.pending_events.append({"type": "promote_to_stable", "reason": reason, "ts": utc_now_iso()})
-    return f"Promote to stable requested: {reason}"
-
-
 def _schedule_task(ctx: ToolContext, description: str, context: str = "", parent_task_id: str = "") -> str:
     current_depth = getattr(ctx, 'task_depth', 0)
     new_depth = current_depth + 1 if parent_task_id else 0
@@ -213,11 +208,6 @@ def get_tools() -> List[ToolEntry]:
             "description": "Ask supervisor to restart runtime (after successful push).",
             "parameters": {"type": "object", "properties": {"reason": {"type": "string"}}, "required": ["reason"]},
         }, _request_restart),
-        ToolEntry("promote_to_stable", {
-            "name": "promote_to_stable",
-            "description": "Superseded by /sanction in Phase 3; use /sanction <hash> to advance last-known-good. This tool now returns a deprecation notice via the event handler.",
-            "parameters": {"type": "object", "properties": {"reason": {"type": "string"}}, "required": ["reason"]},
-        }, _promote_to_stable),
         ToolEntry("schedule_task", {
             "name": "schedule_task",
             "description": "Schedule a background task. Returns task_id for later retrieval. For complex tasks, decompose into focused subtasks with clear scope.",

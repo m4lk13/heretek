@@ -45,7 +45,7 @@ Full text: [BIBLE.md](BIBLE.md)
 ## Architecture
 
 ```
-Telegram → colab_launcher.py
+Telegram → supervisor/__main__.py
                ↓
            supervisor/              (process management)
              state.py              — state, budget tracking
@@ -104,8 +104,8 @@ for k, v in CFG.items():
     os.environ[k] = str(v)
 ```
 
-3. **Run boot shim** (see `colab_bootstrap_shim.py`).
-4. **Message the bot on Telegram.** First person to write = creator.
+3. **Start the supervisor:** `tmux new -s heretek -d 'python -m supervisor'` (attach later with `tmux attach -t heretek`).
+4. **Message the bot on Telegram from the owner account** pinned by `HERETEK_OWNER_USER_ID`. All other senders get a bilingual refusal.
 
 ---
 

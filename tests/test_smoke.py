@@ -92,7 +92,7 @@ EXPECTED_TOOLS = [
     "browse_page", "browser_action",
     "web_search",
     "chat_history", "update_scratchpad", "update_identity",
-    "request_restart", "promote_to_stable", "request_review",
+    "request_restart", "request_review",
     "schedule_task", "cancel_task",
     "switch_model", "toggle_evolution", "toggle_consciousness",
     "send_owner_message", "send_photo",

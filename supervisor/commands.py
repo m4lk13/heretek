@@ -64,6 +64,74 @@ def _run_git(args: list, cwd: pathlib.Path, check: bool = True,
     )
 
 
+def _patch_paths_safe(patch_text: str, repo_dir: pathlib.Path) -> tuple[bool, str]:
+    """Verify every path referenced by a unified-diff patch stays inside repo_dir.
+
+    `git apply` honors paths in `--- a/<p>`, `+++ b/<p>`, `diff --git a/<p> b/<p>`,
+    and `rename from/to` headers. A crafted patch with `b/../../etc/passwd` will
+    happily write outside the repo. SHA validates *integrity* (the patch wasn't
+    hand-edited), not *authority* (the patch only touches files we own).
+
+    Returns (ok, reason). When ok is False, reason names the offending path.
+    """
+    import re
+
+    repo_root = repo_dir.resolve()
+    seen: set[str] = set()
+    # Strip the conventional a/ or b/ prefix git uses in diff headers.
+    strip_prefix = re.compile(r"^[ab]/")
+
+    def _check(raw: str) -> tuple[bool, str]:
+        raw = raw.strip()
+        if not raw or raw == "/dev/null":
+            return True, ""
+        # Quote-handling: git may quote paths with spaces — strip surrounding quotes.
+        if raw.startswith('"') and raw.endswith('"') and len(raw) >= 2:
+            raw = raw[1:-1]
+        stripped = strip_prefix.sub("", raw, count=1)
+        if stripped in seen:
+            return True, ""
+        seen.add(stripped)
+        # Reject obviously hostile components before resolving.
+        parts = pathlib.PurePosixPath(stripped).parts
+        if any(p == ".." for p in parts) or stripped.startswith("/"):
+            return False, stripped
+        candidate = (repo_root / stripped).resolve()
+        try:
+            candidate.relative_to(repo_root)
+        except ValueError:
+            return False, stripped
+        return True, ""
+
+    for line in patch_text.splitlines():
+        if line.startswith("diff --git "):
+            # form: diff --git a/<p> b/<p>  (paths may be quoted)
+            rest = line[len("diff --git "):]
+            # naive split — good enough; we just need both halves checked
+            # split on the first " b/" occurrence
+            mid = rest.find(" b/")
+            if mid > 0:
+                left = rest[:mid]
+                right = rest[mid + 1:]
+                for header in (left, right):
+                    ok, bad = _check(header)
+                    if not ok:
+                        return False, f"diff --git header escapes repo: {bad}"
+        elif line.startswith("--- ") or line.startswith("+++ "):
+            ok, bad = _check(line[4:])
+            if not ok:
+                return False, f"patch target escapes repo: {bad}"
+        elif line.startswith("rename from ") or line.startswith("rename to "):
+            ok, bad = _check(line.split(" ", 2)[-1])
+            if not ok:
+                return False, f"rename header escapes repo: {bad}"
+        elif line.startswith("copy from ") or line.startswith("copy to "):
+            ok, bad = _check(line.split(" ", 2)[-1])
+            if not ok:
+                return False, f"copy header escapes repo: {bad}"
+    return True, ""
+
+
 # ---------------------------------------------------------------------------
 # /evolve — DRY-RUN PROPOSAL (full impl in Plan 03-03)
 # ---------------------------------------------------------------------------
@@ -111,8 +179,16 @@ def cmd_evolve(test_diff_path: Optional[str] = None,
             except (OSError, json.JSONDecodeError):
                 continue
 
-    # 2. Resolve patch source
-    env_diff = os.environ.get("HERETEK_EVOLVE_TEST_DIFF", "").strip()
+    # 2. Resolve patch source.
+    # The env-var fixture path (HERETEK_EVOLVE_TEST_DIFF) is gated behind an
+    # explicit HERETEK_TEST_MODE=1 opt-in so a leaked .env or an os.environ-
+    # mutating tool call cannot pre-stage a malicious patch into dryruns/.
+    # The programmatic test_diff_path argument remains unrestricted — it is
+    # only reachable from privileged callers (CLI argparse, pytest). The real
+    # defense for patch contents is the path sandbox in cmd_sanction, not the
+    # source-file location.
+    test_mode = os.environ.get("HERETEK_TEST_MODE", "").strip() == "1"
+    env_diff = os.environ.get("HERETEK_EVOLVE_TEST_DIFF", "").strip() if test_mode else ""
     source_path = test_diff_path or (env_diff if env_diff else None)
     if not source_path:
         # Phase 4 (Plan 04-04) production path: no fixture provided →
@@ -315,6 +391,33 @@ def cmd_sanction(dryrun_id: str,
             _run_git(["checkout", branch_name], cwd=repo, check=True, timeout=15)
     except subprocess.CalledProcessError as e:
         return f"⚠️ SANCTION_FAILED: cannot checkout {branch_name}: {e.stderr.strip()}"
+
+    # 3.5. Path sandbox — refuse patches that touch paths outside the repo.
+    # SHA validates that the patch wasn't hand-edited; this validates that the
+    # author wasn't trying to escape. Both checks are required.
+    try:
+        patch_text_for_audit = patch_path.read_text(encoding="utf-8", errors="replace")
+    except OSError as e:
+        return f"⚠️ SANCTION_FAILED: cannot read patch file: {e}"
+    ok, reason = _patch_paths_safe(patch_text_for_audit, repo)
+    if not ok:
+        log.warning("cmd_sanction: patch %s rejected by path sandbox: %s", dryrun_id, reason)
+        return (
+            f"⚠️ SANCTION_REFUSED: patch path sandbox rejected the proposal. {reason}. "
+            f"A sanctioned dryrun may only modify files inside the repo."
+        )
+
+    # 3.6. Pre-apply dry-run — `git apply --check` exercises the patch in memory
+    # so we never leave the working tree partially mutated on conflict.
+    check_proc = _run_git(
+        ["apply", "--check", "--whitespace=nowarn", str(patch_path)],
+        cwd=repo, check=False, timeout=30,
+    )
+    if check_proc.returncode != 0:
+        return (
+            f"⚠️ SANCTION_FAILED: git apply --check refused the patch "
+            f"(rc={check_proc.returncode}). stderr: {check_proc.stderr.strip()[:300]}"
+        )
 
     # 4. git apply <patch> — refuse cleanly on conflict
     apply_proc = _run_git(["apply", "--whitespace=nowarn", str(patch_path)], cwd=repo, check=False, timeout=30)

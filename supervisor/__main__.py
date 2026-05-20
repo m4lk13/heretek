@@ -112,7 +112,7 @@ def _resolve_data_root() -> Path:
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(
         prog="python -m supervisor",
-        description="Heretek supervisor — local boot entry point (replaces colab_launcher.py)",
+        description="Heretek supervisor — local boot entry point.",
     )
     parser.add_argument(
         "--smoke",

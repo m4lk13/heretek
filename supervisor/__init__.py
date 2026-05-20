@@ -1,1 +1,1 @@
-"""Ouroboros Supervisor package — decomposed from monolithic colab_launcher.py."""
+"""Heretek supervisor package — Telegram I/O, worker pool, git gates, boot."""
