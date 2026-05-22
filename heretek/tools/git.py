@@ -105,6 +105,24 @@ def _git_push_with_tests(ctx: ToolContext) -> Optional[str]:
         ctx.last_push_succeeded = False
         return f"⚠️ PRE_PUSH_TESTS_FAILED: Tests failed, push blocked.\n{test_error}\nCommitted locally but NOT pushed. Fix tests and push manually."
 
+    # Refuse to pull --rebase unless HEAD is actually on branch_dev. Otherwise
+    # `git pull --rebase origin playground` while HEAD is on main rebases main
+    # onto remote/playground — mutating a protected branch through the front
+    # door of a tool that "only pulls before push." Mirror safe_push's defense.
+    try:
+        cur_branch = run_cmd(
+            ["git", "symbolic-ref", "--short", "HEAD"], cwd=ctx.repo_dir,
+        ).strip()
+    except Exception:
+        cur_branch = ""
+    if cur_branch != ctx.branch_dev:
+        ctx.last_push_succeeded = False
+        return (
+            f"⚠️ PROTECTED_BRANCH: refusing to pull --rebase while HEAD is on "
+            f"{cur_branch or '(detached)'} (expected {ctx.branch_dev}). "
+            f"Committed locally but NOT pushed."
+        )
+
     try:
         run_cmd(["git", "pull", "--rebase", "origin", ctx.branch_dev], cwd=ctx.repo_dir)
     except Exception:

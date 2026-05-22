@@ -509,8 +509,13 @@ def handle_slash_command(text: str, chat_id: int, user_id: int) -> Optional[str]
     # the polling loop (Plan 04-03 Layer 1) already filtered. Protects
     # against future call-sites that bypass the polling loop (test harness,
     # CLI shim, webhook mode). Matches Phase 3's safe_push() defense-in-depth.
+    #
+    # Fail CLOSED on missing/zero owner_id. supervisor/__main__.py FATALs at
+    # boot if HERETEK_OWNER_USER_ID is unset, so we should never reach here
+    # without a positive owner_id — but Layer 2 must not trust that. A test
+    # harness or future webhook entry point may skip the __main__ check.
     owner_id = _owner_user_id()
-    if owner_id and user_id != owner_id:
+    if not owner_id or user_id != owner_id:
         return BILINGUAL_REFUSAL
 
     # Local import to avoid hard module-load coupling with supervisor.commands

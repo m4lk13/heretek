@@ -343,6 +343,21 @@ def cmd_sanction(dryrun_id: str,
     import json
     import shutil
 
+    # Defense-in-depth: refuse if tag_name collides with `main`, contains a
+    # path separator, traversal sequence, or starts with `-` (would be parsed
+    # as a git flag). Today's call sites all pass the hardcoded "last-known-good"
+    # default, but the parameter is a public seam — a future caller that lets
+    # owner input flow into tag_name must not be able to push a tag that
+    # shadows a protected ref or invokes arbitrary git options.
+    if (tag_name == "main"
+            or "/" in tag_name
+            or ".." in tag_name
+            or tag_name.startswith("-")):
+        return (
+            f"⚠️ SANCTION_REFUSED: tag_name {tag_name!r} is not a permitted "
+            f"sanctioned-target name."
+        )
+
     repo = _resolve_repo_dir(repo_dir)
     heretek_dir = repo / ".heretek"
     dryruns_dir = heretek_dir / "dryruns"

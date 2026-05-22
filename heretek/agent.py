@@ -658,13 +658,52 @@ class OuroborosAgent:
         }
         sidecar_dest.write_text(_json.dumps(sidecar, indent=2), encoding="utf-8")
 
-        # Step 3: stash live-tree changes (revert; the patch is the only artifact)
+        # Step 3: stash live-tree changes (revert; the patch is the only artifact).
+        # If stash fails for any reason — non-zero rc, OSError, timeout — the
+        # live working tree still holds the unsanctioned mutation. The next
+        # repo_commit_push from the agent or consciousness loop would commit it
+        # to playground without ever passing through /sanction. So on failure
+        # we hard-revert and notify the owner; the patch on disk is the only
+        # surviving record of the proposal.
+        stash_failed: Optional[str] = None
         try:
-            _sp.run(["git", "stash", "push", "-u", "-m",
-                     f"heretek dryrun {dryrun_id} (pre-sanction stash)"],
-                    cwd=str(repo), check=False, capture_output=True, timeout=30)
-        except Exception:
-            pass  # Stash failure is non-fatal; patch is already written
+            stash_proc = _sp.run(
+                ["git", "stash", "push", "-u", "-m",
+                 f"heretek dryrun {dryrun_id} (pre-sanction stash)"],
+                cwd=str(repo), check=False, capture_output=True,
+                text=True, timeout=30,
+            )
+            if stash_proc.returncode != 0:
+                stash_failed = (
+                    f"git stash exited {stash_proc.returncode}: "
+                    f"{(stash_proc.stderr or stash_proc.stdout or '').strip()[:300]}"
+                )
+        except Exception as e:
+            stash_failed = f"{type(e).__name__}: {e}"
+
+        if stash_failed:
+            log.error(
+                "evolution dryrun %s: stash failed (%s); hard-reverting working tree",
+                dryrun_id, stash_failed,
+            )
+            try:
+                _sp.run(["git", "reset", "--hard", "HEAD"], cwd=str(repo),
+                        check=False, capture_output=True, timeout=30)
+                _sp.run(["git", "clean", "-fd"], cwd=str(repo),
+                        check=False, capture_output=True, timeout=30)
+            except Exception:
+                log.exception("evolution dryrun %s: hard-revert also failed", dryrun_id)
+            try:
+                sidecar["stash_failed"] = stash_failed
+                sidecar_dest.write_text(_json.dumps(sidecar, indent=2), encoding="utf-8")
+            except Exception:
+                log.exception("evolution dryrun %s: sidecar update failed", dryrun_id)
+            if chat_id:
+                send_with_budget(chat_id, (
+                    f"⚠️ Dry-run {dryrun_id}: stash failed ({stash_failed[:120]}). "
+                    f"Working tree hard-reverted to HEAD. The patch on disk is intact; "
+                    f"review it before /sanction."
+                ))
 
         # Step 4: emit to owner chat
         if chat_id:
