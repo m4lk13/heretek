@@ -26,3 +26,4 @@ locks/
 
 # Heretek per-task result artifacts (agent._emit_task_results writes one JSON per task)
 task_results/
+.gitnexus
