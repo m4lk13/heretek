@@ -85,23 +85,24 @@ def test_tool_set_matches(registry):
 
 
 EXPECTED_TOOLS = [
+    # Repo + drive file ops
     "repo_read", "repo_write_commit", "repo_list", "repo_commit_push",
     "drive_read", "drive_write", "drive_list",
     "git_status", "git_diff",
-    "run_shell", "claude_code_edit",
-    "browse_page", "browser_action",
-    "web_search",
+    # Shell
+    "run_shell",
+    # Memory + chat
     "chat_history", "update_scratchpad", "update_identity",
+    # Control / lifecycle
     "request_restart", "request_review",
     "schedule_task", "cancel_task",
     "switch_model", "toggle_evolution", "toggle_consciousness",
     "send_owner_message", "send_photo",
-    "codebase_digest", "codebase_health",
+    # Codebase introspection
+    "codebase_digest",
+    # Knowledge
     "knowledge_read", "knowledge_write", "knowledge_list",
-    "multi_model_review",
-    # GitHub Issues
-    "list_github_issues", "get_github_issue", "comment_on_issue",
-    "close_github_issue", "create_github_issue",
+    # Summaries
     "summarize_dialogue",
     # Task decomposition
     "get_task_result", "wait_for_task",
@@ -119,6 +120,9 @@ EXPECTED_TOOLS = [
     "list_available_tools",
     "enable_tools",
 ]
+# Tools intentionally absent (stripped in Phase 2 ouroboros→heretek refactor):
+# claude_code_edit, browse_page, browser_action, web_search,
+# codebase_health, multi_model_review, GitHub-issue tools.
 
 
 @pytest.mark.parametrize("tool_name", EXPECTED_TOOLS)
